@@ -118,15 +118,8 @@ class ModernMainWindow:
         """Создание элементов интерфейса"""
         # Основной контейнер с прокруткой
         # Исправление: убираем label_text, так как он не поддерживается в некоторых версиях CustomTkinter
-        try:
-            main_container = ctk.CTkScrollableFrame(self.root, label_text="StabLimit")
-        except TypeError:
-            # Если label_text не поддерживается, создаем без него
-            main_container = ctk.CTkScrollableFrame(self.root)
-            # Добавляем заголовок отдельно
-            title_label = ctk.CTkLabel(self.root, text="StabLimit", 
-                                       font=ctk.CTkFont(size=16, weight="bold"))
-            title_label.pack(pady=(10, 0))
+        # Создаем без label_text и добавляем заголовок отдельно
+        main_container = ctk.CTkScrollableFrame(self.root)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Расчетные режимы
