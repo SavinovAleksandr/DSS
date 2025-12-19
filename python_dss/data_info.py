@@ -1,0 +1,748 @@
+"""
+Главный класс управления данными и расчетами
+"""
+
+import csv
+import locale
+from pathlib import Path
+from typing import List, Optional, Callable
+
+from models import (
+    RgmsInfo, ScnsInfo, VrnInfo, KprInfo, SchInfo, ShuntKZ,
+    FileInfo, ShuntResults, CrtTimeResults, DynResults, MdpResults, UostResults
+)
+from calculations import (
+    ShuntKZCalc, MaxKZTimeCalc, DynStabilityCalc, MdpStabilityCalc, UostStabilityCalc
+)
+from excel_operations import ExcelOperations
+from utils.exceptions import UncorrectFileException
+from rastr_operations import RastrOperations
+
+
+class DataInfo:
+    """Главный класс для управления данными и расчетами"""
+    
+    def __init__(self):
+        """Инициализация DataInfo"""
+        self.is_active = False
+        
+        # Коллекции данных
+        self.rgms_info: List[RgmsInfo] = []
+        self.scns_info: List[ScnsInfo] = []
+        self.vrn_inf: List[VrnInfo] = [
+            VrnInfo(id=-1, name="Нормальная схема", num=0, deactive=False)
+        ]
+        
+        # Файлы
+        self.sechen = FileInfo()
+        self.vir = FileInfo()
+        self.grf = FileInfo()
+        self.rems = FileInfo()
+        self.lapnu = FileInfo()
+        self.shunt_kz = FileInfo()
+        
+        # Данные
+        self.sch_inf: List[SchInfo] = []
+        self.kpr_inf: List[KprInfo] = []
+        self.shunt_kz_inf: List[ShuntKZ] = []
+        
+        # Настройки
+        self.use_type_val_u = True
+        self.use_sel_nodes = True
+        self.calc_one_phase = True
+        self.calc_two_phase = True
+        self.base_angle = 1.471
+        self.crt_time_precision = 0.02
+        self.crt_time_max = 1.0
+        self.selected_sch = 0
+        self.dyn_no_pa = True
+        self.dyn_with_pa = False
+        self.save_grf = False
+        self.use_lpn = False
+        self.lpns = ""
+        
+        # Результаты
+        self.shunt_results: List[ShuntResults] = []
+        self.crt_time_results: List[CrtTimeResults] = []
+        self.dyn_results: List[DynResults] = []
+        self.mdp_results: List[MdpResults] = []
+        self.uost_results: List[UostResults] = []
+        
+        # Прогресс
+        self.progress = 0
+        self.max_progress = 1
+        self.label = ""
+        
+        # Путь для результатов
+        self.tmp_root = Path.home() / "DynStabSpace"
+        self.tmp_root.mkdir(parents=True, exist_ok=True)
+    
+    def add_files(self, file_paths: List[str]):
+        """Добавление файлов в проект"""
+        for file_path in file_paths:
+            path = Path(file_path)
+            ext = path.suffix.lower()
+            
+            try:
+                if ext in ['.rg2', '.rst']:
+                    # Расчетный режим
+                    if not any(rgm.name == file_path for rgm in self.rgms_info):
+                        self.rgms_info.append(RgmsInfo(name=file_path))
+                
+                elif ext == '.scn':
+                    # Аварийный процесс
+                    if not any(scn.name == file_path for scn in self.scns_info):
+                        self.scns_info.append(ScnsInfo(name=file_path))
+                
+                elif ext == '.ut2':
+                    # Траектория утяжеления
+                    self.vir.name = file_path
+                
+                elif ext == '.sch':
+                    # Файл сечений
+                    self.sechen.name = file_path
+                    self.sch_inf.clear()
+                    
+                    rastr = RastrOperations()
+                    rastr.load(file_path)
+                    sections = rastr.selection("sechen")
+                    
+                    for section_id in sections:
+                        self.sch_inf.append(SchInfo(
+                            id=section_id,
+                            name=rastr.get_val("sechen", "name", section_id),
+                            num=rastr.get_val("sechen", "ns", section_id),
+                            control=rastr.get_val("sechen", "sta", section_id)
+                        ))
+                
+                elif ext == '.vrn':
+                    # Ремонтные схемы
+                    self.rems.name = file_path
+                    self.vrn_inf.clear()
+                    self.vrn_inf.append(VrnInfo(id=-1, name="Нормальная схема", num=0, deactive=False))
+                    
+                    rastr = RastrOperations()
+                    rastr.load(file_path)
+                    variants = rastr.selection("var_mer")
+                    
+                    for variant_id in variants:
+                        self.vrn_inf.append(VrnInfo(
+                            id=variant_id,
+                            name=rastr.get_val("var_mer", "name", variant_id),
+                            num=rastr.get_val("var_mer", "Num", variant_id),
+                            deactive=rastr.get_val("var_mer", "sta", variant_id)
+                        ))
+                
+                elif ext == '.kpr':
+                    # Графический вывод
+                    self.grf.name = file_path
+                    self.kpr_inf.clear()
+                    
+                    rastr = RastrOperations()
+                    rastr.load(file_path)
+                    ots_vals = rastr.selection("ots_val")
+                    
+                    for ots_id in ots_vals:
+                        self.kpr_inf.append(KprInfo(
+                            id=ots_id,
+                            num=rastr.get_val("ots_val", "Num", ots_id),
+                            name=rastr.get_val("ots_val", "name", ots_id),
+                            table=rastr.get_val("ots_val", "tabl", ots_id),
+                            selection=rastr.get_val("ots_val", "vibork", ots_id),
+                            col=rastr.get_val("ots_val", "formula", ots_id)
+                        ))
+                
+                elif ext == '.csv':
+                    # Файл задания для шунтов КЗ
+                    self.shunt_kz.name = file_path
+                    self.use_sel_nodes = False
+                    self.shunt_kz_inf.clear()
+                    
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        reader = csv.reader(f, delimiter=';')
+                        header = next(reader)
+                        
+                        if (len(header) != 7 or header[0] != "node" or header[1] != "r1" or
+                            header[2] != "x1" or header[3] != "u1" or header[4] != "r2" or
+                            header[5] != "x2" or header[6] != "u2"):
+                            raise UncorrectFileException("Некорректный файл для задания шунтов КЗ")
+                        
+                        decimal_sep = locale.localeconv()['decimal_point']
+                        alt_sep = "," if decimal_sep == "." else "."
+                        
+                        for row in reader:
+                            if len(row) >= 7:
+                                self.shunt_kz_inf.append(ShuntKZ(
+                                    node=int(row[0]),
+                                    r1=float(row[1].replace(alt_sep, decimal_sep)) if row[1] and row[1] != "0" else -1.0,
+                                    x1=float(row[2].replace(alt_sep, decimal_sep)) if row[2] and row[2] != "0" else -1.0,
+                                    u1=float(row[3].replace(alt_sep, decimal_sep)) if row[3] and row[3] != "0" else -1.0,
+                                    r2=float(row[4].replace(alt_sep, decimal_sep)) if row[4] and row[4] != "0" else -1.0,
+                                    x2=float(row[5].replace(alt_sep, decimal_sep)) if row[5] and row[5] != "0" else -1.0,
+                                    u2=float(row[6].replace(alt_sep, decimal_sep)) if row[6] and row[6] != "0" else -1.0
+                                ))
+                
+                elif ext in ['.dwf', '.lpn']:
+                    # Файл ПА
+                    self.dyn_with_pa = True
+                    self.lapnu.name = file_path
+                    self.use_lpn = (ext == '.lpn')
+                    
+                    if self.use_lpn:
+                        rastr = RastrOperations()
+                        rastr.load(file_path)
+                        lapnu_ids = rastr.selection("LAPNU", "sta = 0")
+                        self.lpns = "=" + ";".join(str(rastr.get_val("LAPNU", "Id", lap_id)) for lap_id in lapnu_ids)
+            
+            except Exception as e:
+                print(f"Ошибка при обработке файла {file_path}: {e}")
+                raise
+    
+    def delete_selected(self, selected_rgm: Optional[RgmsInfo] = None, 
+                       selected_scn: Optional[ScnsInfo] = None):
+        """Удаление выбранных элементов"""
+        if selected_rgm and selected_rgm in self.rgms_info:
+            self.rgms_info.remove(selected_rgm)
+        if selected_scn and selected_scn in self.scns_info:
+            self.scns_info.remove(selected_scn)
+    
+    def calc_shunt_kz(self, progress_callback: Optional[Callable[[int], None]] = None):
+        """Расчет шунтов КЗ"""
+        if self.is_active:
+            return
+        
+        self.is_active = True
+        self._clear_all_results()
+        
+        calc = ShuntKZCalc(
+            progress_callback,
+            self.rgms_info, self.vrn_inf, self.rems.name,
+            self.shunt_kz_inf, self.use_sel_nodes, self.use_type_val_u,
+            self.calc_one_phase, self.calc_two_phase
+        )
+        
+        self.max_progress = calc.max
+        self.progress = 0
+        
+        try:
+            self.shunt_results = calc.calc()
+            self._save_results_to_excel(calc.root)
+            return calc.root
+        finally:
+            self.is_active = False
+            self.progress = 0
+            self.label = ""
+    
+    def calc_max_kz_time(self, progress_callback: Optional[Callable[[int], None]] = None):
+        """Расчет предельного времени КЗ"""
+        if self.is_active:
+            return
+        
+        self.is_active = True
+        self._clear_all_results()
+        
+        calc = MaxKZTimeCalc(
+            progress_callback,
+            self.rgms_info, self.scns_info, self.vrn_inf,
+            self.rems.name, self.crt_time_precision, self.crt_time_max
+        )
+        
+        self.max_progress = calc.max
+        self.progress = 0
+        
+        try:
+            self.crt_time_results = calc.calc()
+            self._save_results_to_excel(calc.root)
+            return calc.root
+        finally:
+            self.is_active = False
+            self.progress = 0
+            self.label = ""
+    
+    def calc_dyn_stability(self, progress_callback: Optional[Callable[[int], None]] = None):
+        """Пакетный расчет динамической устойчивости"""
+        if self.is_active:
+            return
+        
+        self.is_active = True
+        self._clear_all_results()
+        
+        calc = DynStabilityCalc(
+            progress_callback,
+            self.rgms_info, self.scns_info, self.vrn_inf,
+            self.rems.name, self.kpr_inf, self.sechen.name,
+            self.lapnu.name, self.save_grf, self.lpns,
+            self.dyn_no_pa, self.dyn_with_pa, self.use_lpn
+        )
+        
+        self.max_progress = calc.max
+        self.progress = 0
+        
+        try:
+            self.dyn_results = calc.calc()
+            self._save_results_to_excel(calc.root)
+            return calc.root
+        finally:
+            self.is_active = False
+            self.progress = 0
+            self.label = ""
+    
+    def calc_mdp_stability(self, progress_callback: Optional[Callable[[int], None]] = None):
+        """Расчет МДП ДУ"""
+        if self.is_active:
+            return
+        
+        self.is_active = True
+        self._clear_all_results()
+        
+        calc = MdpStabilityCalc(
+            progress_callback,
+            self.rgms_info, self.scns_info, self.vrn_inf,
+            self.rems.name, self.vir.name, self.sechen.name,
+            self.lapnu.name, self.sch_inf, self.kpr_inf,
+            self.lpns, self.selected_sch, self.dyn_no_pa,
+            self.dyn_with_pa, self.use_lpn
+        )
+        
+        self.max_progress = calc.max
+        self.progress = 0
+        
+        try:
+            self.mdp_results = calc.calc()
+            self._save_results_to_excel(calc.root)
+            return calc.root
+        finally:
+            self.is_active = False
+            self.progress = 0
+            self.label = ""
+    
+    def calc_uost_stability(self, progress_callback: Optional[Callable[[int], None]] = None):
+        """Расчет остаточного напряжения при КЗ"""
+        if self.is_active:
+            return
+        
+        self.is_active = True
+        self._clear_all_results()
+        
+        calc = UostStabilityCalc(
+            progress_callback,
+            self.rgms_info, self.scns_info, self.vrn_inf,
+            self.rems.name, self.kpr_inf
+        )
+        
+        self.max_progress = calc.max
+        self.progress = 0
+        
+        try:
+            self.uost_results = calc.calc()
+            self._save_results_to_excel(calc.root)
+            return calc.root
+        finally:
+            self.is_active = False
+            self.progress = 0
+            self.label = ""
+    
+    def _clear_all_results(self):
+        """Очистка всех результатов"""
+        self.shunt_results.clear()
+        self.crt_time_results.clear()
+        self.dyn_results.clear()
+        self.mdp_results.clear()
+        self.uost_results.clear()
+    
+    def _save_results_to_excel(self, root: str):
+        """Сохранение результатов в Excel"""
+        root_path = Path(root)
+        
+        # Определение типа результатов
+        result_type = 0
+        if self.shunt_results:
+            result_type = 1
+        elif self.crt_time_results:
+            result_type = 2
+        elif self.dyn_results:
+            result_type = 3
+        elif self.mdp_results:
+            result_type = 4
+        elif self.uost_results:
+            result_type = 5
+        
+        excel = ExcelOperations("Результаты расчетов")
+        excel.font()
+        
+        # Заголовки
+        excel.set_val(1, 1, "Наименование режима")
+        excel.width(1, 40)
+        excel.set_val(1, 2, "Схема сети")
+        excel.width(2, 40)
+        
+        row = 2
+        
+        if result_type == 1:
+            # Шунты КЗ
+            excel.merge(1, 1, 2, 1, horizontal=True, vertical=True)
+            excel.merge(1, 2, 2, 2, horizontal=True, vertical=True)
+            excel.set_val(1, 3, "Номер узла")
+            excel.merge(1, 3, 2, 3, horizontal=True, vertical=True)
+            excel.width(3, 15)
+            
+            excel.set_val(1, 4, "Однофазное КЗ")
+            excel.merge(1, 4, 1, 6, horizontal=True, vertical=True)
+            excel.set_val(2, 4, "R, Ом")
+            excel.width(4, 15)
+            excel.set_val(2, 5, "X, Ом")
+            excel.width(5, 15)
+            excel.set_val(2, 6, "U1, кВ")
+            excel.width(6, 15)
+            
+            excel.set_val(1, 7, "Двухфазное КЗ")
+            excel.merge(1, 7, 1, 9, horizontal=True, vertical=True)
+            excel.set_val(2, 7, "R, Ом")
+            excel.width(7, 15)
+            excel.set_val(2, 8, "X, Ом")
+            excel.width(8, 15)
+            excel.set_val(2, 9, "U1, кВ")
+            excel.width(9, 15)
+            
+            excel.format(1, 1, 2, 9, horizontal='center', vertical='center')
+            excel.borders(1, 1, 2, 9)
+            
+            row = 3
+            for shunt_result in self.shunt_results:
+                start_row = row
+                for shem in shunt_result.shems:
+                    shem_start_row = row
+                    excel.set_val(row, 2, shem.sheme_name)
+                    
+                    if shem.is_stable:
+                        for node in shem.nodes:
+                            excel.set_val(row, 3, node.node)
+                            excel.set_val(row, 4, f"{node.r1:.3f}")
+                            excel.set_val(row, 5, f"{node.x1:.3f}")
+                            excel.set_val(row, 6, f"{node.u1:.1f}")
+                            excel.set_val(row, 7, f"{node.r2:.3f}")
+                            excel.set_val(row, 8, f"{node.x2:.3f}")
+                            excel.set_val(row, 9, f"{node.u2:.1f}")
+                            excel.format(row, 3, row, 9, horizontal='center', vertical='center')
+                            row += 1
+                    else:
+                        excel.set_val(row, 3, "Схема не балансируется")
+                        excel.merge(row, 3, row, 9, horizontal=True, vertical=True)
+                        row += 1
+                    
+                    excel.merge(shem_start_row, 2, row - 1, 2, horizontal=True, vertical=True)
+                
+                excel.set_val(start_row, 1, shunt_result.rg_name)
+                excel.merge(start_row, 1, row - 1, 1, horizontal=True, vertical=True)
+                excel.borders(start_row, 1, row - 1, 9)
+            
+            if not self.calc_one_phase:
+                excel.hide_column(4)
+                excel.hide_column(5)
+                excel.hide_column(6)
+            if not self.calc_two_phase:
+                excel.hide_column(7)
+                excel.hide_column(8)
+                excel.hide_column(9)
+        
+        elif result_type == 2:
+            # Предельное время КЗ
+            excel.set_val(1, 3, "Расчетное КЗ")
+            excel.width(3, 40)
+            excel.set_val(1, 4, "Предельное время отключения, с")
+            excel.width(4, 15)
+            excel.format(1, 1, 1, 4, horizontal='center', vertical='center')
+            excel.borders(1, 1, 1, 4)
+            
+            row = 2
+            for crt_result in self.crt_time_results:
+                start_row = row
+                for crt_shem in crt_result.crt_shems:
+                    shem_start_row = row
+                    excel.set_val(row, 2, crt_shem.sheme_name)
+                    
+                    if crt_shem.is_stable:
+                        for time in crt_shem.times:
+                            excel.set_val(row, 3, time.scn_name)
+                            if self.crt_time_max != time.crt_time:
+                                excel.set_val(row, 4, f"{time.crt_time:.3f}")
+                            else:
+                                excel.set_val(row, 4, f">{time.crt_time}")
+                            row += 1
+                    else:
+                        excel.set_val(row, 3, "Схема не балансируется")
+                        excel.merge(row, 3, row, 4, horizontal=True, vertical=True)
+                        row += 1
+                    
+                    excel.merge(shem_start_row, 2, row - 1, 2, horizontal=True, vertical=True)
+                
+                excel.set_val(start_row, 1, crt_result.rg_name)
+                excel.merge(start_row, 1, row - 1, 1, horizontal=True, vertical=True)
+                excel.format(start_row, 1, row - 1, 4, horizontal='center', vertical='center')
+                excel.borders(start_row, 1, row - 1, 4)
+        
+        elif result_type == 3:
+            # Пакетный расчет ДУ
+            excel.merge(1, 1, 2, 1, horizontal=True, vertical=True)
+            excel.merge(1, 2, 2, 2, horizontal=True, vertical=True)
+            excel.set_val(1, 3, "Расчетный сценарий")
+            excel.merge(1, 3, 2, 3, horizontal=True, vertical=True)
+            excel.width(3, 15)
+            
+            excel.set_val(1, 4, "Без учета действия ПА")
+            excel.merge(1, 4, 1, 6, horizontal=True, vertical=True)
+            excel.set_val(2, 4, "Результат расчета ДУ")
+            excel.width(4, 20)
+            excel.set_val(2, 5, "Критерий нарушения ДУ")
+            excel.width(5, 40)
+            excel.set_val(2, 6, "Рисунок")
+            excel.width(6, 20)
+            
+            excel.set_val(1, 7, "С учетом действия ПА")
+            excel.merge(1, 7, 1, 9, horizontal=True, vertical=True)
+            excel.set_val(2, 7, "Результат расчета ДУ")
+            excel.width(7, 20)
+            excel.set_val(2, 8, "Критерий нарушения ДУ")
+            excel.width(8, 40)
+            excel.set_val(2, 9, "Рисунок")
+            excel.width(9, 20)
+            
+            excel.format(1, 1, 2, 9, horizontal='center', vertical='center')
+            excel.borders(1, 1, 2, 9)
+            
+            row = 3
+            for dyn_result in self.dyn_results:
+                start_row = row
+                for dyn_shem in dyn_result.dyn_shems:
+                    shem_start_row = row
+                    excel.set_val(row, 2, dyn_shem.sheme_name)
+                    
+                    if dyn_shem.is_stable:
+                        for event in dyn_shem.events:
+                            excel.set_val(row, 3, event.name)
+                            
+                            if event.no_pa_result.is_success:
+                                excel.set_val(row, 4, "Устойчиво" if event.no_pa_result.is_stable else "Неустойчиво")
+                                excel.set_val(row, 5, "-" if event.no_pa_result.is_stable else event.no_pa_result.result_message)
+                                pic_names = "\n".join(Path(p).stem for p in event.no_pa_pic)
+                                excel.set_val(row, 6, pic_names)
+                            
+                            if event.with_pa_result.is_success:
+                                excel.set_val(row, 7, "Устойчиво" if event.with_pa_result.is_stable else "Неустойчиво")
+                                excel.set_val(row, 8, "-" if event.with_pa_result.is_stable else event.with_pa_result.result_message)
+                                pic_names = "\n".join(Path(p).stem for p in event.with_pa_pic)
+                                excel.set_val(row, 9, pic_names)
+                            
+                            excel.format(row, 3, row, 9, horizontal='center', vertical='center')
+                            row += 1
+                    else:
+                        excel.set_val(row, 3, "Схема не балансируется")
+                        excel.merge(row, 3, row, 9, horizontal=True, vertical=True)
+                        row += 1
+                    
+                    excel.merge(shem_start_row, 2, row - 1, 2, horizontal=True, vertical=True)
+                
+                excel.set_val(start_row, 1, dyn_result.rg_name)
+                excel.merge(start_row, 1, row - 1, 1, horizontal=True, vertical=True)
+                excel.borders(start_row, 1, row - 1, 9)
+            
+            if not self.save_grf:
+                excel.hide_column(6)
+                excel.hide_column(9)
+            if not self.dyn_no_pa:
+                excel.hide_column(4)
+                excel.hide_column(5)
+                excel.hide_column(6)
+            if not self.dyn_with_pa:
+                excel.hide_column(7)
+                excel.hide_column(8)
+                excel.hide_column(9)
+        
+        elif result_type == 4:
+            # МДП ДУ
+            num_sch = len([s for s in self.sch_inf if s.control])
+            num_kpr = len(self.kpr_inf)
+            
+            excel.merge(1, 1, 3, 1, horizontal=True, vertical=True)
+            excel.merge(1, 2, 3, 2, horizontal=True, vertical=True)
+            excel.set_val(1, 3, "Расчетный сценарий")
+            excel.merge(1, 3, 3, 3, horizontal=True, vertical=True)
+            excel.width(3, 15)
+            
+            excel.set_val(1, 4, "Без учета действия ПА")
+            excel.set_val(2, 4, "МДП, МВт")
+            excel.width(4, 15)
+            excel.merge(2, 4, 3, 4, horizontal=True, vertical=True)
+            
+            excel.set_val(1, 5 + num_sch + num_kpr, "С учетом действия ПА")
+            excel.set_val(2, 5 + num_sch + num_kpr, "МДП, МВт")
+            excel.width(5 + num_sch + num_kpr, 15)
+            excel.merge(2, 5 + num_sch + num_kpr, 3, 5 + num_sch + num_kpr, horizontal=True, vertical=True)
+            
+            # Заголовки для сечений и контролируемых величин
+            if num_sch > 0:
+                excel.set_val(2, 5, "Перетоки в КС, МВт")
+                excel.set_val(2, 6 + num_sch + num_kpr, "Перетоки в КС, МВт")
+                for idx, sch in enumerate([s for s in self.sch_inf if s.control]):
+                    excel.set_val(3, 5 + idx, sch.name)
+                    excel.set_val(3, 6 + num_sch + num_kpr + idx, sch.name)
+                    excel.width(5 + idx, 15)
+                    excel.width(6 + num_sch + num_kpr + idx, 15)
+                excel.merge(2, 5, 2, 5 + num_sch - 1, horizontal=True, vertical=True)
+                excel.merge(2, 6 + num_sch + num_kpr, 2, 6 + num_sch + num_kpr + num_sch - 1, horizontal=True, vertical=True)
+            
+            if num_kpr > 0:
+                excel.set_val(2, 5 + num_sch, "Контролируемые величины")
+                excel.set_val(2, 6 + 2 * num_sch + num_kpr, "Контролируемые величины")
+                for idx, kpr in enumerate(self.kpr_inf):
+                    excel.set_val(3, 5 + num_sch + idx, kpr.name)
+                    excel.set_val(3, 6 + 2 * num_sch + num_kpr + idx, kpr.name)
+                    excel.width(5 + num_sch + idx, 15)
+                    excel.width(6 + 2 * num_sch + num_kpr + idx, 15)
+                excel.merge(2, 5 + num_sch, 2, 5 + num_sch + num_kpr - 1, horizontal=True, vertical=True)
+                excel.merge(2, 6 + 2 * num_sch + num_kpr, 2, 6 + 2 * num_sch + num_kpr + num_kpr - 1, horizontal=True, vertical=True)
+            
+            if num_sch > 0 or num_kpr > 0:
+                excel.merge(1, 4, 1, 4 + num_sch + num_kpr, horizontal=True, vertical=True)
+                excel.merge(1, 5 + num_sch + num_kpr, 1, 5 + 2 * num_sch + 2 * num_kpr, horizontal=True, vertical=True)
+            
+            excel.format(1, 1, 3, 5 + 2 * num_sch + 2 * num_kpr, horizontal='center', vertical='center')
+            excel.borders(1, 1, 3, 5 + 2 * num_sch + 2 * num_kpr)
+            
+            row = 4
+            for mdp_result in self.mdp_results:
+                start_row = row
+                for mdp_shem in mdp_result.mdp_shems:
+                    shem_start_row = row
+                    excel.set_val(row, 2, mdp_shem.sheme_name)
+                    
+                    if mdp_shem.is_stable:
+                        for mdp_event in mdp_shem.events:
+                            excel.set_val(row, 3, mdp_event.name)
+                            excel.set_val(row, 4, f"{mdp_event.no_pa_mdp:.0f}")
+                            excel.set_val(row, 5 + num_sch + num_kpr, f"{mdp_event.with_pa_mdp:.0f}")
+                            
+                            if num_sch > 0:
+                                for idx in range(num_sch):
+                                    if idx < len(mdp_event.no_pa_sechen):
+                                        excel.set_val(row, 5 + idx, f"{mdp_event.no_pa_sechen[idx].value:.0f}")
+                                    if idx < len(mdp_event.with_pa_sechen):
+                                        excel.set_val(row, 6 + num_sch + num_kpr + idx, f"{mdp_event.with_pa_sechen[idx].value:.0f}")
+                            
+                            if num_kpr > 0:
+                                for idx in range(num_kpr):
+                                    if idx < len(mdp_event.no_pa_kpr):
+                                        excel.set_val(row, 5 + num_sch + idx, f"{mdp_event.no_pa_kpr[idx].value:.2f}")
+                                    if idx < len(mdp_event.with_pa_kpr):
+                                        excel.set_val(row, 6 + 2 * num_sch + num_kpr + idx, f"{mdp_event.with_pa_kpr[idx].value:.2f}")
+                            
+                            excel.format(row, 3, row, 5 + 2 * num_sch + 2 * num_kpr, horizontal='center', vertical='center')
+                            row += 1
+                    else:
+                        excel.set_val(row, 3, "Схема не балансируется")
+                        excel.merge(row, 3, row, 5 + 2 * num_sch + 2 * num_kpr, horizontal=True, vertical=True)
+                        row += 1
+                    
+                    excel.merge(shem_start_row, 2, row - 1, 2, horizontal=True, vertical=True)
+                
+                excel.set_val(start_row, 1, mdp_result.rg_name)
+                excel.merge(start_row, 1, row - 1, 1, horizontal=True, vertical=True)
+                excel.borders(start_row, 1, row - 1, 5 + 2 * num_sch + 2 * num_kpr)
+            
+            if not self.dyn_no_pa:
+                for col in range(4, 5 + num_sch + num_kpr):
+                    excel.hide_column(col)
+            if not self.dyn_with_pa:
+                for col in range(5 + num_sch + num_kpr, 6 + 2 * num_sch + 2 * num_kpr):
+                    excel.hide_column(col)
+        
+        elif result_type == 5:
+            # Остаточное напряжение при КЗ
+            num_kpr = len(self.kpr_inf)
+            
+            excel.merge(1, 1, 2, 1, horizontal=True, vertical=True)
+            excel.merge(1, 2, 2, 2, horizontal=True, vertical=True)
+            excel.set_val(1, 3, "Расчетный сценарий")
+            excel.width(3, 15)
+            excel.merge(1, 3, 2, 3, horizontal=True, vertical=True)
+            
+            excel.set_val(1, 4, "ЛЭП")
+            excel.set_val(2, 4, "Узел начала")
+            excel.width(4, 15)
+            excel.set_val(2, 5, "Узел конца")
+            excel.width(5, 15)
+            excel.set_val(2, 6, "Np")
+            excel.width(6, 7)
+            excel.merge(1, 4, 1, 6, horizontal=True, vertical=True)
+            
+            excel.set_val(1, 7, "Область устойчивости, %")
+            excel.width(7, 15)
+            excel.merge(1, 7, 2, 7, horizontal=True, vertical=True)
+            
+            excel.set_val(1, 8, "Остаточное напряжение в узлах ЛЭП, кВ")
+            excel.set_val(2, 8, "Узел начала")
+            excel.width(8, 15)
+            excel.set_val(2, 9, "Узел конца")
+            excel.width(9, 15)
+            excel.merge(1, 8, 1, 9, horizontal=True, vertical=True)
+            
+            if num_kpr > 0:
+                excel.set_val(1, 10, "Контролируемые величины")
+                for idx, kpr in enumerate(self.kpr_inf):
+                    excel.set_val(2, 10 + idx, kpr.name)
+                excel.merge(1, 10, 1, 10 + num_kpr - 1, horizontal=True, vertical=True)
+            
+            excel.format(1, 1, 2, 9 + num_kpr, horizontal='center', vertical='center')
+            excel.borders(1, 1, 2, 9 + num_kpr)
+            
+            row = 3
+            for uost_result in self.uost_results:
+                start_row = row
+                for uost_shem in uost_result.uost_shems:
+                    shem_start_row = row
+                    excel.set_val(row, 2, uost_shem.sheme_name)
+                    
+                    if uost_shem.is_stable:
+                        for uost_event in uost_shem.events:
+                            excel.set_val(row, 3, uost_event.name)
+                            excel.set_val(row, 4, uost_event.begin_node)
+                            excel.set_val(row, 5, uost_event.end_node)
+                            excel.set_val(row, 6, uost_event.np)
+                            
+                            if uost_event.distance == -1.0:
+                                excel.set_val(row, 7, ">100")
+                            elif uost_event.distance == 100.0:
+                                excel.set_val(row, 7, "<0")
+                            else:
+                                excel.set_val(row, 7, f"{uost_event.distance * 100.0:.2f}")
+                            
+                            excel.set_val(row, 8, f"{uost_event.begin_uost:.2f}")
+                            excel.set_val(row, 9, f"{uost_event.end_uost:.2f}")
+                            
+                            if num_kpr > 0:
+                                for idx, value in enumerate(uost_event.values):
+                                    excel.set_val(row, 10 + idx, value.value)
+                            
+                            excel.format(row, 3, row, 9 + num_kpr, horizontal='center', vertical='center')
+                            row += 1
+                    else:
+                        excel.set_val(row, 3, "Схема не балансируется")
+                        excel.merge(row, 3, row, 9 + num_kpr, horizontal=True, vertical=True)
+                        row += 1
+                    
+                    excel.merge(shem_start_row, 2, row - 1, 2, horizontal=True, vertical=True)
+                
+                excel.set_val(start_row, 1, uost_result.rg_name)
+                excel.merge(start_row, 1, row - 1, 1, horizontal=True, vertical=True)
+                excel.borders(start_row, 1, row - 1, 9 + num_kpr)
+        
+        # Сохранение файла
+        excel_file = root_path / "Результат расчетов.xlsx"
+        excel.save(str(excel_file))
+        
+        # Удаление временных файлов
+        for tmp_file in root_path.glob("*.rst"):
+            tmp_file.unlink()
+        for tmp_file in root_path.glob("*.scn"):
+            tmp_file.unlink()
+
