@@ -183,7 +183,74 @@ class DynStabilityCalc:
         return results
     
     def _save_picture(self, rastr: RastrOperations, kprs: List[KprInfo], file_path: str):
-        """Сохранение графика"""
+        """Сохранение графика (интерактивный Plotly или статический matplotlib)"""
+        try:
+            # Пытаемся использовать Plotly для интерактивных графиков
+            try:
+                from visualization.plotly_visualizer import plotly_visualizer
+                
+                if plotly_visualizer:
+                    # Подготовка данных для Plotly
+                    data_series = []
+                    for kpr in kprs:
+                        points = rastr.get_points_from_exit_file(kpr.table, kpr.col, kpr.selection)
+                        if points:
+                            x_vals = [p.x for p in points]
+                            y_vals = [p.y for p in points]
+                            data_series.append({
+                                'name': kpr.name,
+                                'x': x_vals,
+                                'y': y_vals,
+                                'line_width': 2
+                            })
+                    
+                    if data_series:
+                        # Сохраняем как интерактивный HTML
+                        html_path = Path(file_path).with_suffix('.html')
+                        result = plotly_visualizer.create_time_series_plot(
+                            data_series=data_series,
+                            title="Динамическая устойчивость",
+                            x_label="Время, с",
+                            y_label="Значение",
+                            output_path=html_path,
+                            interactive=True
+                        )
+                        
+                        # Также сохраняем статическое изображение для совместимости
+                        try:
+                            static_path = Path(file_path)
+                            if static_path.suffix != '.png':
+                                static_path = static_path.with_suffix('.png')
+                            plotly_visualizer.save_static_image(
+                                html_path,
+                                static_path,
+                                format='png',
+                                width=1200,
+                                height=800
+                            )
+                        except Exception as e:
+                            # Если не удалось сохранить статическое изображение,
+                            # используем matplotlib как fallback
+                            self._save_picture_matplotlib(rastr, kprs, file_path)
+                        
+                        return
+            except ImportError:
+                # Plotly не доступен, используем matplotlib
+                pass
+            except Exception as e:
+                # Ошибка при использовании Plotly, fallback на matplotlib
+                from utils.logger import logger
+                logger.warning(f"Не удалось использовать Plotly: {e}, используется matplotlib")
+            
+            # Fallback на matplotlib
+            self._save_picture_matplotlib(rastr, kprs, file_path)
+        
+        except Exception as e:
+            from utils.logger import logger
+            logger.error(f"Ошибка при сохранении графика {file_path}: {e}")
+    
+    def _save_picture_matplotlib(self, rastr: RastrOperations, kprs: List[KprInfo], file_path: str):
+        """Сохранение графика через matplotlib (fallback)"""
         try:
             import matplotlib.pyplot as plt
             import matplotlib
@@ -206,5 +273,6 @@ class DynStabilityCalc:
             plt.savefig(file_path, dpi=100, bbox_inches='tight')
             plt.close()
         except Exception as e:
-            print(f"Ошибка при сохранении графика {file_path}: {e}")
+            from utils.logger import logger
+            logger.error(f"Ошибка при сохранении графика через matplotlib: {e}")
 
