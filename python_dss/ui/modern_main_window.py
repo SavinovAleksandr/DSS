@@ -114,7 +114,7 @@ class ModernMainWindow:
         rgms_frame.pack(fill="x", pady=5)
         
         ctk.CTkLabel(rgms_frame, text="Расчетные режимы:", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
-        self.rgms_listbox = ctk.CTkTextbox(rgms_frame, height=100, state="disabled")
+        self.rgms_listbox = ctk.CTkTextbox(rgms_frame, height=60, state="disabled", wrap="word", font=ctk.CTkFont(size=12))
         self.rgms_listbox.pack(fill="x", padx=10, pady=(0, 10))
         
         # Аварийные процессы
@@ -122,7 +122,7 @@ class ModernMainWindow:
         scns_frame.pack(fill="x", pady=5)
         
         ctk.CTkLabel(scns_frame, text="Аварийные процессы:", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
-        self.scns_listbox = ctk.CTkTextbox(scns_frame, height=100, state="disabled")
+        self.scns_listbox = ctk.CTkTextbox(scns_frame, height=60, state="disabled", wrap="word", font=ctk.CTkFont(size=12))
         self.scns_listbox.pack(fill="x", padx=10, pady=(0, 10))
         
         # Файлы
