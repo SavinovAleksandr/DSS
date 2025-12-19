@@ -3,13 +3,18 @@
 """
 
 from pathlib import Path
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, TYPE_CHECKING
 from enum import Enum
 
 from utils.logger import logger
 from utils.error_handler import error_handler
 from utils.file_type_detector import FileTypeDetector
-from data_info import DataInfo
+
+# Ленивый импорт DataInfo для избежания циклического импорта
+if TYPE_CHECKING:
+    from data_info import DataInfo
+else:
+    DataInfo = None  # Будет импортирован при использовании
 
 
 class ValidationStatus(Enum):
@@ -53,7 +58,7 @@ class ValidationResult:
 class DataValidator:
     """Класс для валидации данных"""
     
-    def __init__(self, data_info: DataInfo):
+    def __init__(self, data_info):
         self.data_info = data_info
         self.validation_cache: Dict[str, ValidationResult] = {}
     
