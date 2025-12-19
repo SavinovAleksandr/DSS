@@ -5,7 +5,11 @@
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional
-from utils.logger import logger
+
+# Ленивый импорт logger для избежания циклического импорта
+def _get_logger():
+    from utils.logger import logger
+    return logger
 
 try:
     import yaml
@@ -42,7 +46,11 @@ class Config:
         # Загрузка конфигурации
         self._config: Dict[str, Any] = self._load_config()
         
-        logger.info(f"Конфигурация загружена из {self.config_file}")
+        # Логирование после загрузки (избегаем циклический импорт)
+        try:
+            _get_logger().info(f"Конфигурация загружена из {self.config_file}")
+        except:
+            pass  # Если logger еще не инициализирован, пропускаем
     
     def _get_default_config(self) -> Dict[str, Any]:
         """Получить конфигурацию по умолчанию"""
@@ -106,10 +114,16 @@ class Config:
                 
                 # Слияние с конфигурацией по умолчанию
                 merged_config = self._merge_config(default_config, user_config)
-                logger.info("Конфигурация загружена из файла")
+                try:
+                    _get_logger().info("Конфигурация загружена из файла")
+                except:
+                    pass
                 return merged_config
             except Exception as e:
-                logger.warning(f"Не удалось загрузить конфигурацию: {e}, используются значения по умолчанию")
+                try:
+                    _get_logger().warning(f"Не удалось загрузить конфигурацию: {e}, используются значения по умолчанию")
+                except:
+                    pass
         
         # Попытка загрузить из YAML (если доступен)
         yaml_config_file = self.config_dir / 'config.yaml'
@@ -120,17 +134,29 @@ class Config:
                 
                 if user_config:
                     merged_config = self._merge_config(default_config, user_config)
-                    logger.info("Конфигурация загружена из YAML файла")
+                    try:
+                        _get_logger().info("Конфигурация загружена из YAML файла")
+                    except:
+                        pass
                     return merged_config
             except Exception as e:
-                logger.warning(f"Не удалось загрузить YAML конфигурацию: {e}")
+                try:
+                    _get_logger().warning(f"Не удалось загрузить YAML конфигурацию: {e}")
+                except:
+                    pass
         
         # Создание файла конфигурации по умолчанию
         try:
             self._save_config(default_config)
-            logger.info("Создан файл конфигурации по умолчанию")
+            try:
+                _get_logger().info("Создан файл конфигурации по умолчанию")
+            except:
+                pass
         except Exception as e:
-            logger.warning(f"Не удалось сохранить конфигурацию: {e}")
+            try:
+                _get_logger().warning(f"Не удалось сохранить конфигурацию: {e}")
+            except:
+                pass
         
         return default_config
     
@@ -196,7 +222,10 @@ class Config:
         
         if save:
             self._save_config(self._config)
-            logger.debug(f"Конфигурация обновлена: {key_path} = {value}")
+            try:
+                _get_logger().debug(f"Конфигурация обновлена: {key_path} = {value}")
+            except:
+                pass
     
     def get_path(self, key_path: str, expand_user: bool = True) -> Path:
         """
@@ -222,12 +251,18 @@ class Config:
     def reload(self):
         """Перезагрузить конфигурацию из файла"""
         self._config = self._load_config()
-        logger.info("Конфигурация перезагружена")
+        try:
+            _get_logger().info("Конфигурация перезагружена")
+        except:
+            pass
     
     def save(self):
         """Сохранить текущую конфигурацию в файл"""
         self._save_config(self._config)
-        logger.info("Конфигурация сохранена")
+        try:
+            _get_logger().info("Конфигурация сохранена")
+        except:
+            pass
 
 
 # Глобальный экземпляр конфигурации
