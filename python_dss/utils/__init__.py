@@ -7,10 +7,16 @@ from .exceptions import (
     UserLicenseException,
     UncorrectFileException
 )
+from .logger import logger, Logger
+from .error_handler import error_handler, ErrorHandler
 
 __all__ = [
     'InitialDataException',
     'UserLicenseException',
-    'UncorrectFileException'
+    'UncorrectFileException',
+    'logger',
+    'Logger',
+    'error_handler',
+    'ErrorHandler'
 ]
 
