@@ -8,6 +8,7 @@ from enum import Enum
 
 from utils.logger import logger
 from utils.error_handler import error_handler
+from utils.file_type_detector import FileTypeDetector
 from data_info import DataInfo
 
 
@@ -52,15 +53,6 @@ class ValidationResult:
 class DataValidator:
     """Класс для валидации данных"""
     
-    # Расширения файлов для разных типов
-    FILE_EXTENSIONS = {
-        'rems': ['.rg2', '.rst'],
-        'lapnu': ['.lpn', '.dwf'],
-        'vir': ['.vrn'],
-        'sechen': ['.sch'],
-        'grf': ['.kpr'],
-    }
-    
     def __init__(self, data_info: DataInfo):
         self.data_info = data_info
         self.validation_cache: Dict[str, ValidationResult] = {}
@@ -102,10 +94,10 @@ class DataValidator:
             return result
         
         # Проверка расширения
-        expected_extensions = self.FILE_EXTENSIONS.get(file_type, [])
+        expected_extensions = FileTypeDetector.get_extensions(file_type)
         if expected_extensions:
-            file_ext = file_path_obj.suffix.lower()
-            if file_ext not in expected_extensions:
+            if not FileTypeDetector.is_valid_extension(file_path, file_type):
+                file_ext = file_path_obj.suffix.lower()
                 result = ValidationResult(
                     ValidationStatus.WARNING,
                     f"Неожиданное расширение файла: {file_ext}",

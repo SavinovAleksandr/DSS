@@ -13,6 +13,8 @@ from .theme_manager import theme_manager, ThemeManager
 from .validator import DataValidator, ValidationResult, ValidationStatus
 from .cache import cache_manager, CacheManager, cached, timed
 from .performance import performance_optimizer, PerformanceOptimizer
+from .config import config, Config
+from .file_type_detector import FileTypeDetector
 
 __all__ = [
     'InitialDataException',
@@ -32,6 +34,9 @@ __all__ = [
     'cached',
     'timed',
     'performance_optimizer',
-    'PerformanceOptimizer'
+    'PerformanceOptimizer',
+    'config',
+    'Config',
+    'FileTypeDetector'
 ]
 

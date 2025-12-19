@@ -16,6 +16,8 @@ from calculations import (
 )
 from excel_operations import ExcelOperations
 from utils.exceptions import UncorrectFileException
+from utils.config import config
+from utils.file_type_detector import FileTypeDetector
 from rastr_operations import RastrOperations
 
 
@@ -46,20 +48,20 @@ class DataInfo:
         self.kpr_inf: List[KprInfo] = []
         self.shunt_kz_inf: List[ShuntKZ] = []
         
-        # Настройки
-        self.use_type_val_u = True
-        self.use_sel_nodes = True
-        self.calc_one_phase = True
-        self.calc_two_phase = True
-        self.base_angle = 1.471
-        self.crt_time_precision = 0.02
-        self.crt_time_max = 1.0
-        self.selected_sch = 0
-        self.dyn_no_pa = True
-        self.dyn_with_pa = False
-        self.save_grf = False
-        self.use_lpn = False
-        self.lpns = ""
+        # Настройки (из конфигурации)
+        self.use_type_val_u = config.get("settings.use_type_val_u", True)
+        self.use_sel_nodes = config.get("settings.use_sel_nodes", True)
+        self.calc_one_phase = config.get("settings.calc_one_phase", True)
+        self.calc_two_phase = config.get("settings.calc_two_phase", True)
+        self.base_angle = config.get("calculations.base_angle", 1.471)
+        self.crt_time_precision = config.get("calculations.crt_time_precision", 0.02)
+        self.crt_time_max = config.get("calculations.crt_time_max", 1.0)
+        self.selected_sch = config.get("calculations.default_selected_sch", 0)
+        self.dyn_no_pa = config.get("settings.dyn_no_pa", True)
+        self.dyn_with_pa = config.get("settings.dyn_with_pa", False)
+        self.save_grf = config.get("settings.save_grf", False)
+        self.use_lpn = config.get("settings.use_lpn", False)
+        self.lpns = config.get("settings.lpns", "")
         
         # Результаты
         self.shunt_results: List[ShuntResults] = []
@@ -73,130 +75,149 @@ class DataInfo:
         self.max_progress = 1
         self.label = ""
         
-        # Путь для результатов
-        self.tmp_root = Path.home() / "DynStabSpace"
+        # Путь для результатов (из конфигурации)
+        self.tmp_root = config.get_path("paths.results_dir")
         self.tmp_root.mkdir(parents=True, exist_ok=True)
     
     def add_files(self, file_paths: List[str]):
         """Добавление файлов в проект"""
         for file_path in file_paths:
-            path = Path(file_path)
-            ext = path.suffix.lower()
-            
             try:
-                if ext in ['.rg2', '.rst']:
-                    # Расчетный режим
-                    if not any(rgm.name == file_path for rgm in self.rgms_info):
-                        self.rgms_info.append(RgmsInfo(name=file_path))
+                file_type = FileTypeDetector.detect(file_path)
                 
-                elif ext == '.scn':
-                    # Аварийный процесс
-                    if not any(scn.name == file_path for scn in self.scns_info):
-                        self.scns_info.append(ScnsInfo(name=file_path))
-                
-                elif ext == '.ut2':
-                    # Траектория утяжеления
-                    self.vir.name = file_path
-                
-                elif ext == '.sch':
-                    # Файл сечений
-                    self.sechen.name = file_path
-                    self.sch_inf.clear()
-                    
-                    rastr = RastrOperations()
-                    rastr.load(file_path)
-                    sections = rastr.selection("sechen")
-                    
-                    for section_id in sections:
-                        self.sch_inf.append(SchInfo(
-                            id=section_id,
-                            name=rastr.get_val("sechen", "name", section_id),
-                            num=rastr.get_val("sechen", "ns", section_id),
-                            control=rastr.get_val("sechen", "sta", section_id)
-                        ))
-                
-                elif ext == '.vrn':
-                    # Ремонтные схемы
-                    self.rems.name = file_path
-                    self.vrn_inf.clear()
-                    self.vrn_inf.append(VrnInfo(id=-1, name="Нормальная схема", num=0, deactive=False))
-                    
-                    rastr = RastrOperations()
-                    rastr.load(file_path)
-                    variants = rastr.selection("var_mer")
-                    
-                    for variant_id in variants:
-                        self.vrn_inf.append(VrnInfo(
-                            id=variant_id,
-                            name=rastr.get_val("var_mer", "name", variant_id),
-                            num=rastr.get_val("var_mer", "Num", variant_id),
-                            deactive=rastr.get_val("var_mer", "sta", variant_id)
-                        ))
-                
-                elif ext == '.kpr':
-                    # Графический вывод
-                    self.grf.name = file_path
-                    self.kpr_inf.clear()
-                    
-                    rastr = RastrOperations()
-                    rastr.load(file_path)
-                    ots_vals = rastr.selection("ots_val")
-                    
-                    for ots_id in ots_vals:
-                        self.kpr_inf.append(KprInfo(
-                            id=ots_id,
-                            num=rastr.get_val("ots_val", "Num", ots_id),
-                            name=rastr.get_val("ots_val", "name", ots_id),
-                            table=rastr.get_val("ots_val", "tabl", ots_id),
-                            selection=rastr.get_val("ots_val", "vibork", ots_id),
-                            col=rastr.get_val("ots_val", "formula", ots_id)
-                        ))
-                
-                elif ext == '.csv':
-                    # Файл задания для шунтов КЗ
-                    self.shunt_kz.name = file_path
-                    self.use_sel_nodes = False
-                    self.shunt_kz_inf.clear()
-                    
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        reader = csv.reader(f, delimiter=';')
-                        header = next(reader)
-                        
-                        if (len(header) != 7 or header[0] != "node" or header[1] != "r1" or
-                            header[2] != "x1" or header[3] != "u1" or header[4] != "r2" or
-                            header[5] != "x2" or header[6] != "u2"):
-                            raise UncorrectFileException("Некорректный файл для задания шунтов КЗ")
-                        
-                        decimal_sep = locale.localeconv()['decimal_point']
-                        alt_sep = "," if decimal_sep == "." else "."
-                        
-                        for row in reader:
-                            if len(row) >= 7:
-                                self.shunt_kz_inf.append(ShuntKZ(
-                                    node=int(row[0]),
-                                    r1=float(row[1].replace(alt_sep, decimal_sep)) if row[1] and row[1] != "0" else -1.0,
-                                    x1=float(row[2].replace(alt_sep, decimal_sep)) if row[2] and row[2] != "0" else -1.0,
-                                    u1=float(row[3].replace(alt_sep, decimal_sep)) if row[3] and row[3] != "0" else -1.0,
-                                    r2=float(row[4].replace(alt_sep, decimal_sep)) if row[4] and row[4] != "0" else -1.0,
-                                    x2=float(row[5].replace(alt_sep, decimal_sep)) if row[5] and row[5] != "0" else -1.0,
-                                    u2=float(row[6].replace(alt_sep, decimal_sep)) if row[6] and row[6] != "0" else -1.0
-                                ))
-                
-                elif ext in ['.dwf', '.lpn']:
-                    # Файл ПА
-                    self.dyn_with_pa = True
-                    self.lapnu.name = file_path
-                    self.use_lpn = (ext == '.lpn')
-                    
-                    if self.use_lpn:
-                        rastr = RastrOperations()
-                        rastr.load(file_path)
-                        lapnu_ids = rastr.selection("LAPNU", "sta = 0")
-                        self.lpns = "=" + ";".join(str(rastr.get_val("LAPNU", "Id", lap_id)) for lap_id in lapnu_ids)
+                if file_type == 'rems':
+                    self._handle_rems_file(file_path)
+                elif file_type == 'scenario':
+                    self._handle_scenario_file(file_path)
+                elif file_type == 'vir':
+                    self._handle_vir_file(file_path)
+                elif file_type == 'sechen':
+                    self._handle_sechen_file(file_path)
+                elif file_type == 'rems_vrn':
+                    self._handle_rems_vrn_file(file_path)
+                elif file_type == 'grf':
+                    self._handle_grf_file(file_path)
+                elif file_type == 'shunt_kz':
+                    self._handle_shunt_kz_file(file_path)
+                elif file_type == 'lapnu':
+                    self._handle_lapnu_file(file_path)
+                else:
+                    raise UncorrectFileException(f"Неподдерживаемый тип файла: {Path(file_path).suffix}")
             
             except Exception as e:
                 print(f"Ошибка при обработке файла {file_path}: {e}")
                 raise
+    
+    def _handle_rems_file(self, file_path: str):
+        """Обработка файла расчетного режима"""
+        if not any(rgm.name == file_path for rgm in self.rgms_info):
+            self.rgms_info.append(RgmsInfo(name=file_path))
+    
+    def _handle_scenario_file(self, file_path: str):
+        """Обработка файла аварийного процесса"""
+        if not any(scn.name == file_path for scn in self.scns_info):
+            self.scns_info.append(ScnsInfo(name=file_path))
+    
+    def _handle_vir_file(self, file_path: str):
+        """Обработка файла траектории утяжеления"""
+        self.vir.name = file_path
+    
+    def _handle_sechen_file(self, file_path: str):
+        """Обработка файла сечений"""
+        self.sechen.name = file_path
+        self.sch_inf.clear()
+        
+        rastr = RastrOperations()
+        rastr.load(file_path)
+        sections = rastr.selection("sechen")
+        
+        for section_id in sections:
+            self.sch_inf.append(SchInfo(
+                id=section_id,
+                name=rastr.get_val("sechen", "name", section_id),
+                num=rastr.get_val("sechen", "ns", section_id),
+                control=rastr.get_val("sechen", "sta", section_id)
+            ))
+    
+    def _handle_rems_vrn_file(self, file_path: str):
+        """Обработка файла ремонтных схем"""
+        self.rems.name = file_path
+        self.vrn_inf.clear()
+        self.vrn_inf.append(VrnInfo(id=-1, name="Нормальная схема", num=0, deactive=False))
+        
+        rastr = RastrOperations()
+        rastr.load(file_path)
+        variants = rastr.selection("var_mer")
+        
+        for variant_id in variants:
+            self.vrn_inf.append(VrnInfo(
+                id=variant_id,
+                name=rastr.get_val("var_mer", "name", variant_id),
+                num=rastr.get_val("var_mer", "Num", variant_id),
+                deactive=rastr.get_val("var_mer", "sta", variant_id)
+            ))
+    
+    def _handle_grf_file(self, file_path: str):
+        """Обработка файла графического вывода"""
+        self.grf.name = file_path
+        self.kpr_inf.clear()
+        
+        rastr = RastrOperations()
+        rastr.load(file_path)
+        ots_vals = rastr.selection("ots_val")
+        
+        for ots_id in ots_vals:
+            self.kpr_inf.append(KprInfo(
+                id=ots_id,
+                num=rastr.get_val("ots_val", "Num", ots_id),
+                name=rastr.get_val("ots_val", "name", ots_id),
+                table=rastr.get_val("ots_val", "tabl", ots_id),
+                selection=rastr.get_val("ots_val", "vibork", ots_id),
+                col=rastr.get_val("ots_val", "formula", ots_id)
+            ))
+    
+    def _handle_shunt_kz_file(self, file_path: str):
+        """Обработка файла задания для шунтов КЗ"""
+        self.shunt_kz.name = file_path
+        self.use_sel_nodes = False
+        self.shunt_kz_inf.clear()
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f, delimiter=';')
+            header = next(reader)
+            
+            if (len(header) != 7 or header[0] != "node" or header[1] != "r1" or
+                header[2] != "x1" or header[3] != "u1" or header[4] != "r2" or
+                header[5] != "x2" or header[6] != "u2"):
+                raise UncorrectFileException("Некорректный файл для задания шунтов КЗ")
+            
+            decimal_sep = locale.localeconv()['decimal_point']
+            alt_sep = "," if decimal_sep == "." else "."
+            
+            for row in reader:
+                if len(row) >= 7:
+                    self.shunt_kz_inf.append(ShuntKZ(
+                        node=int(row[0]),
+                        r1=float(row[1].replace(alt_sep, decimal_sep)) if row[1] and row[1] != "0" else -1.0,
+                        x1=float(row[2].replace(alt_sep, decimal_sep)) if row[2] and row[2] != "0" else -1.0,
+                        u1=float(row[3].replace(alt_sep, decimal_sep)) if row[3] and row[3] != "0" else -1.0,
+                        r2=float(row[4].replace(alt_sep, decimal_sep)) if row[4] and row[4] != "0" else -1.0,
+                        x2=float(row[5].replace(alt_sep, decimal_sep)) if row[5] and row[5] != "0" else -1.0,
+                        u2=float(row[6].replace(alt_sep, decimal_sep)) if row[6] and row[6] != "0" else -1.0
+                    ))
+    
+    def _handle_lapnu_file(self, file_path: str):
+        """Обработка файла ПА"""
+        self.dyn_with_pa = True
+        self.lapnu.name = file_path
+        ext = Path(file_path).suffix.lower()
+        self.use_lpn = (ext == '.lpn')
+        
+        if self.use_lpn:
+            rastr = RastrOperations()
+            rastr.load(file_path)
+            lapnu_ids = rastr.selection("LAPNU", "sta = 0")
+            self.lpns = "=" + ";".join(str(rastr.get_val("LAPNU", "Id", lap_id)) for lap_id in lapnu_ids)
     
     def delete_selected(self, selected_rgm: Optional[RgmsInfo] = None, 
                        selected_scn: Optional[ScnsInfo] = None):

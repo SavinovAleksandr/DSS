@@ -9,6 +9,7 @@ import json
 from datetime import datetime
 
 from utils.logger import logger
+from utils.config import config
 from utils.exceptions import (
     InitialDataException,
     UserLicenseException,
@@ -42,7 +43,7 @@ class ErrorHandler:
     )
     
     def __init__(self):
-        self.error_reports_dir = Path.home() / '.dynstabspace' / 'error_reports'
+        self.error_reports_dir = config.get_path("paths.error_reports_dir")
         self.error_reports_dir.mkdir(parents=True, exist_ok=True)
     
     def handle_error(

@@ -5,6 +5,7 @@
 import os
 from pathlib import Path
 from .exceptions import UserLicenseException
+from .config import config
 
 
 def check_license() -> bool:
@@ -19,8 +20,8 @@ def check_license() -> bool:
     """
     machine_name = os.environ.get('COMPUTERNAME', '') or os.environ.get('HOSTNAME', '')
     
-    # Путь к файлу лицензии (Windows)
-    license_path = Path("C:/ПАРУС 6/licence.txt")
+    # Путь к файлу лицензии (из конфигурации)
+    license_path = config.get_path("paths.license_file", expand_user=False)
     
     if not license_path.exists():
         raise UserLicenseException("Файл лицензии не обнаружен")

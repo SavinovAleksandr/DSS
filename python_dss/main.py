@@ -21,6 +21,7 @@ except ImportError:
 from utils.exceptions import UserLicenseException
 from utils.logger import logger
 from utils.error_handler import error_handler
+from utils.config import config
 
 
 def main():
@@ -29,8 +30,11 @@ def main():
         logger.info("Запуск DynStabSpace")
         logger.audit("APPLICATION_START", "Запуск приложения")
         
-        # Выбор UI: проверяем переменную окружения или используем современный UI по умолчанию
-        use_modern_ui = os.getenv('DSS_USE_MODERN_UI', 'true').lower() == 'true'
+        # Выбор UI: проверяем переменную окружения, конфиг или используем современный UI по умолчанию
+        use_modern_ui = os.getenv('DSS_USE_MODERN_UI', '').lower()
+        if not use_modern_ui:
+            use_modern_ui = str(config.get("ui.use_modern_ui", True)).lower()
+        use_modern_ui = use_modern_ui == 'true'
         
         if use_modern_ui and MODERN_UI_AVAILABLE:
             try:

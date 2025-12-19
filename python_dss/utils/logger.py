@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 from datetime import datetime
 from typing import Optional
+from .config import config
 
 
 class Logger:
@@ -33,8 +34,8 @@ class Logger:
         if self.logger.handlers:
             return
         
-        # Создание директории для логов
-        self.log_dir = Path.home() / '.dynstabspace' / 'logs'
+        # Создание директории для логов (из конфигурации)
+        self.log_dir = config.get_path("paths.logs_dir")
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
         # Формат логов
@@ -51,10 +52,12 @@ class Logger:
         
         # Файловый обработчик (DEBUG и выше) с ротацией по размеру
         log_file = self.log_dir / 'dynstabspace.log'
+        max_bytes = config.get("logging.max_bytes", 10 * 1024 * 1024)
+        backup_count = config.get("logging.backup_count", 5)
         file_handler = logging.handlers.RotatingFileHandler(
             log_file,
-            maxBytes=10 * 1024 * 1024,  # 10 MB
-            backupCount=5,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
             encoding='utf-8'
         )
         file_handler.setLevel(logging.DEBUG)
@@ -63,10 +66,12 @@ class Logger:
         
         # Обработчик ошибок (ERROR и выше) в отдельный файл
         error_log_file = self.log_dir / 'errors.log'
+        error_max_bytes = config.get("logging.error_log_max_bytes", 5 * 1024 * 1024)
+        error_backup_count = config.get("logging.error_log_backup_count", 3)
         error_handler = logging.handlers.RotatingFileHandler(
             error_log_file,
-            maxBytes=5 * 1024 * 1024,  # 5 MB
-            backupCount=3,
+            maxBytes=error_max_bytes,
+            backupCount=error_backup_count,
             encoding='utf-8'
         )
         error_handler.setLevel(logging.ERROR)

@@ -57,8 +57,10 @@ class ShuntKZCalc:
         self._calc_one_phase = calc_one_phase
         self._calc_two_phase = calc_two_phase
         
-        # Создание папки для результатов
-        self._root = Path.home() / "DynStabSpace" / f"{datetime.now():%Y-%m-%d %H-%M-%S} Шунты КЗ"
+        # Создание папки для результатов (из конфигурации)
+        from utils.config import config
+        results_dir = config.get_path("paths.results_dir")
+        self._root = results_dir / f"{datetime.now():%Y-%m-%d %H-%M-%S} Шунты КЗ"
         self._root.mkdir(parents=True, exist_ok=True)
     
     @property

@@ -1,0 +1,105 @@
+# Пример конфигурации DynStabSpace
+# Скопируйте этот файл в ~/.dynstabspace/config.yaml и настройте под себя
+
+# Пути к файлам и директориям
+paths:
+  # Путь к файлу лицензии (Windows)
+  license_file: "C:/ПАРУС 6/licence.txt"
+  
+  # Директория для сохранения результатов расчетов
+  results_dir: "~/DynStabSpace"
+  
+  # Директория для логов
+  logs_dir: "~/.dynstabspace/logs"
+  
+  # Директория для кэша
+  cache_dir: "~/.dynstabspace/cache"
+  
+  # Директория для отчетов об ошибках
+  error_reports_dir: "~/.dynstabspace/error_reports"
+  
+  # Директория с шаблонами RASTR
+  rastr_template_dir: "~/RastrWIN3/SHABLON"
+
+# Настройки расчетов
+calculations:
+  # Базовый угол (радианы)
+  base_angle: 1.471
+  
+  # Точность расчета предельного времени КЗ
+  crt_time_precision: 0.02
+  
+  # Максимальное время КЗ для расчета
+  crt_time_max: 1.0
+  
+  # Выбранное сечение по умолчанию
+  default_selected_sch: 0
+
+# Настройки расчетов
+settings:
+  # Использовать типовые значения остаточного напряжения
+  use_type_val_u: true
+  
+  # Использовать отмеченные узлы
+  use_sel_nodes: true
+  
+  # Рассчитывать однофазное КЗ
+  calc_one_phase: true
+  
+  # Рассчитывать двухфазное КЗ
+  calc_two_phase: true
+  
+  # Динамическая устойчивость без ПА
+  dyn_no_pa: true
+  
+  # Динамическая устойчивость с ПА
+  dyn_with_pa: false
+  
+  # Сохранять графики
+  save_grf: false
+  
+  # Использовать LPN
+  use_lpn: false
+  
+  # Строка LPN
+  lpns: ""
+
+# Настройки интерфейса
+ui:
+  # Тема: "light", "dark" или "system"
+  theme: "system"
+  
+  # Размер окна [ширина, высота]
+  window_size: [900, 750]
+  
+  # Минимальный размер окна [ширина, высота]
+  min_window_size: [800, 600]
+  
+  # Использовать современный UI (CustomTkinter)
+  use_modern_ui: true
+
+# Настройки логирования
+logging:
+  # Максимальный размер основного лог-файла (байты)
+  max_bytes: 10485760  # 10 MB
+  
+  # Количество резервных копий логов
+  backup_count: 5
+  
+  # Максимальный размер лог-файла ошибок (байты)
+  error_log_max_bytes: 5242880  # 5 MB
+  
+  # Количество резервных копий логов ошибок
+  error_log_backup_count: 3
+
+# Настройки производительности
+performance:
+  # Максимальное количество потоков (null = автоматически)
+  max_workers: null
+  
+  # Включить кэширование
+  cache_enabled: true
+  
+  # Время жизни кэша (секунды)
+  cache_ttl: 3600  # 1 час
+

@@ -11,6 +11,7 @@ from functools import wraps
 import time
 
 from utils.logger import logger
+from utils.config import config
 
 
 class CacheManager:
@@ -29,11 +30,11 @@ class CacheManager:
             return
         
         CacheManager._initialized = True
-        self.cache_dir = Path.home() / '.dynstabspace' / 'cache'
+        self.cache_dir = config.get_path("paths.cache_dir")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.memory_cache = {}  # Кэш в памяти
         self.max_memory_size = 100  # Максимальное количество элементов в памяти
-        self.cache_enabled = True
+        self.cache_enabled = config.get("performance.cache_enabled", True)
         
         logger.info("Менеджер кэша инициализирован")
     

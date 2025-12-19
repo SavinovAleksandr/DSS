@@ -48,7 +48,9 @@ class MaxKZTimeCalc:
         self._max_time = max_time
         
         # Создание папки для результатов
-        self._root = Path.home() / "DynStabSpace" / f"{datetime.now():%Y-%m-%d %H-%M-%S} Предельное время КЗ"
+        from utils.config import config
+        results_dir = config.get_path("paths.results_dir")
+        self._root = results_dir / f"{datetime.now():%Y-%m-%d %H-%M-%S} Предельное время КЗ"
         self._root.mkdir(parents=True, exist_ok=True)
     
     @property

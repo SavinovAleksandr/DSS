@@ -75,7 +75,9 @@ class DynStabilityCalc:
             self._grf_groups[kpr.num].append(kpr)
         
         # Создание папки для результатов
-        self._root = Path.home() / "DynStabSpace" / f"{datetime.now():%Y-%m-%d %H-%M-%S} Пакетный расчет ДУ"
+        from utils.config import config
+        results_dir = config.get_path("paths.results_dir")
+        self._root = results_dir / f"{datetime.now():%Y-%m-%d %H-%M-%S} Пакетный расчет ДУ"
         self._root.mkdir(parents=True, exist_ok=True)
     
     @property

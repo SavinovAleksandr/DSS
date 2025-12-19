@@ -48,7 +48,9 @@ class UostStabilityCalc:
         self._kprs = kprs
         
         # Создание папки для результатов
-        self._root = Path.home() / "DynStabSpace" / f"{datetime.now():%Y-%m-%d %H-%M-%S} Uост на границе устойчивости"
+        from utils.config import config
+        results_dir = config.get_path("paths.results_dir")
+        self._root = results_dir / f"{datetime.now():%Y-%m-%d %H-%M-%S} Uост на границе устойчивости"
         self._root.mkdir(parents=True, exist_ok=True)
     
     @property
