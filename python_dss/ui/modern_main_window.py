@@ -32,70 +32,69 @@ class ModernMainWindow:
             self.root.title("StabLimit - Расчет динамической устойчивости")
             self.root.geometry("900x750")
             self.root.minsize(800, 600)
-        
-        # Установка иконки окна
-        try:
-            icon_path = Path(__file__).parent.parent / "resources" / "StabLimit.png"
-            if icon_path.exists():
-                # CustomTkinter использует стандартный tkinter для иконки
-                from PIL import ImageTk
-                img = Image.open(icon_path)
-                photo = ImageTk.PhotoImage(img)
-                self.root.iconphoto(False, photo)
-                # Сохраняем ссылку, чтобы изображение не удалилось
-                self.root._icon_photo = photo
-                logger.info(f"Иконка окна установлена: {icon_path}")
-        except Exception as e:
-            logger.warning(f"Не удалось установить иконку окна: {e}")
-        
-        # Проверка лицензии
-        try:
-            logger.info("Проверка лицензии")
-            if not check_license():
+            
+            # Установка иконки окна
+            try:
+                icon_path = Path(__file__).parent.parent / "resources" / "StabLimit.png"
+                if icon_path.exists():
+                    # CustomTkinter использует стандартный tkinter для иконки
+                    from PIL import ImageTk
+                    img = Image.open(icon_path)
+                    photo = ImageTk.PhotoImage(img)
+                    self.root.iconphoto(False, photo)
+                    # Сохраняем ссылку, чтобы изображение не удалилось
+                    self.root._icon_photo = photo
+                    logger.info(f"Иконка окна установлена: {icon_path}")
+            except Exception as e:
+                logger.warning(f"Не удалось установить иконку окна: {e}")
+            
+            # Проверка лицензии
+            try:
+                logger.info("Проверка лицензии")
+                if not check_license():
+                    user_message, _ = error_handler.handle_error(
+                        UserLicenseException("Некорректный файл лицензии"),
+                        context="Проверка лицензии при инициализации",
+                        show_to_user=True
+                    )
+                    messagebox.showerror("Ошибка лицензии", user_message)
+                    self.root.destroy()
+                    return
+                logger.info("Лицензия проверена успешно")
+                logger.audit("LICENSE_CHECK", "Успешная проверка лицензии")
+            except UserLicenseException as e:
                 user_message, _ = error_handler.handle_error(
-                    UserLicenseException("Некорректный файл лицензии"),
+                    e,
                     context="Проверка лицензии при инициализации",
                     show_to_user=True
                 )
                 messagebox.showerror("Ошибка лицензии", user_message)
                 self.root.destroy()
                 return
-            logger.info("Лицензия проверена успешно")
-            logger.audit("LICENSE_CHECK", "Успешная проверка лицензии")
-        except UserLicenseException as e:
-            user_message, _ = error_handler.handle_error(
-                e,
-                context="Проверка лицензии при инициализации",
-                show_to_user=True
-            )
-            messagebox.showerror("Ошибка лицензии", user_message)
-            self.root.destroy()
-            return
-        
-        # Инициализация данных
-        try:
-            logger.info("Инициализация данных")
-            self.data_info = DataInfo()
-            logger.info("Данные инициализированы успешно")
-        except Exception as e:
-            user_message, _ = error_handler.handle_error(
-                e,
-                context="Инициализация данных",
-                show_to_user=True
-            )
-            messagebox.showerror("Ошибка инициализации", user_message)
-            self.root.destroy()
-            return
-        
-        # Инициализация валидатора
-        self.validator = DataValidator(self.data_info)
-        
-        # Хранилище для индикаторов валидации
-        self.validation_indicators = {}
-        self.calc_buttons = {}
-        
-        # Создание интерфейса
-        try:
+            
+            # Инициализация данных
+            try:
+                logger.info("Инициализация данных")
+                self.data_info = DataInfo()
+                logger.info("Данные инициализированы успешно")
+            except Exception as e:
+                user_message, _ = error_handler.handle_error(
+                    e,
+                    context="Инициализация данных",
+                    show_to_user=True
+                )
+                messagebox.showerror("Ошибка инициализации", user_message)
+                self.root.destroy()
+                return
+            
+            # Инициализация валидатора
+            self.validator = DataValidator(self.data_info)
+            
+            # Хранилище для индикаторов валидации
+            self.validation_indicators = {}
+            self.calc_buttons = {}
+            
+            # Создание интерфейса
             self._create_ui()
             self._setup_keyboard_shortcuts()
             self._setup_drag_drop()
