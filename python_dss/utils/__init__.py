@@ -9,6 +9,7 @@ from .exceptions import (
 )
 from .logger import logger, Logger
 from .error_handler import error_handler, ErrorHandler
+from .theme_manager import theme_manager, ThemeManager
 
 __all__ = [
     'InitialDataException',
@@ -17,6 +18,8 @@ __all__ = [
     'logger',
     'Logger',
     'error_handler',
-    'ErrorHandler'
+    'ErrorHandler',
+    'theme_manager',
+    'ThemeManager'
 ]
 

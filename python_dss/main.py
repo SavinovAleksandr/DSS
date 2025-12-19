@@ -10,7 +10,14 @@ from pathlib import Path
 # Добавление пути к модулям
 sys.path.insert(0, str(Path(__file__).parent))
 
+import os
 from ui.main_window import MainWindow
+try:
+    from ui.modern_main_window import ModernMainWindow
+    MODERN_UI_AVAILABLE = True
+except ImportError:
+    MODERN_UI_AVAILABLE = False
+    ModernMainWindow = None
 from utils.exceptions import UserLicenseException
 from utils.logger import logger
 from utils.error_handler import error_handler
@@ -22,7 +29,20 @@ def main():
         logger.info("Запуск DynStabSpace")
         logger.audit("APPLICATION_START", "Запуск приложения")
         
-        app = MainWindow()
+        # Выбор UI: проверяем переменную окружения или используем современный UI по умолчанию
+        use_modern_ui = os.getenv('DSS_USE_MODERN_UI', 'true').lower() == 'true'
+        
+        if use_modern_ui and MODERN_UI_AVAILABLE:
+            try:
+                logger.info("Использование современного UI (CustomTkinter)")
+                app = ModernMainWindow()
+            except Exception as e:
+                logger.warning(f"Не удалось загрузить современный UI: {e}, используется классический")
+                app = MainWindow()
+        else:
+            logger.info("Использование классического UI (tkinter)")
+            app = MainWindow()
+        
         app.run()
         
         logger.info("Завершение работы DynStabSpace")
