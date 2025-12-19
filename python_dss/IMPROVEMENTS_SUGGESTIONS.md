@@ -1,4 +1,4 @@
-# Предложения по улучшению и упрощению
+# Предложения по улучшению и упрощению StabLimit
 
 ## 🎯 Приоритетные улучшения
 
@@ -18,7 +18,7 @@
 ```yaml
 paths:
   license_file: "C:\\ПАРУС 6\\licence.txt"
-  results_dir: "~/DynStabSpace"
+  results_dir: "~/StabLimit"
   logs_dir: "~/.dynstabspace/logs"
 
 calculations:
