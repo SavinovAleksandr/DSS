@@ -11,6 +11,8 @@ import threading
 from data_info import DataInfo
 from utils.license import check_license
 from utils.exceptions import UserLicenseException, InitialDataException
+from utils.logger import logger
+from utils.error_handler import error_handler
 
 
 class MainWindow:
@@ -24,23 +26,50 @@ class MainWindow:
         
         # Проверка лицензии
         try:
+            logger.info("Проверка лицензии")
             if not check_license():
-                messagebox.showerror("Ошибка лицензии", "Некорректный файл лицензии")
+                user_message, _ = error_handler.handle_error(
+                    UserLicenseException("Некорректный файл лицензии"),
+                    context="Проверка лицензии при инициализации",
+                    show_to_user=True
+                )
+                messagebox.showerror("Ошибка лицензии", user_message)
                 self.root.destroy()
                 return
+            logger.info("Лицензия проверена успешно")
+            logger.audit("LICENSE_CHECK", "Успешная проверка лицензии")
         except UserLicenseException as e:
-            messagebox.showerror("Ошибка лицензии", str(e))
+            user_message, _ = error_handler.handle_error(
+                e,
+                context="Проверка лицензии при инициализации",
+                show_to_user=True
+            )
+            messagebox.showerror("Ошибка лицензии", user_message)
             self.root.destroy()
             return
         
         # Инициализация данных
-        self.data_info = DataInfo()
+        try:
+            logger.info("Инициализация данных")
+            self.data_info = DataInfo()
+            logger.info("Данные инициализированы успешно")
+        except Exception as e:
+            user_message, _ = error_handler.handle_error(
+                e,
+                context="Инициализация данных",
+                show_to_user=True
+            )
+            messagebox.showerror("Ошибка инициализации", user_message)
+            self.root.destroy()
+            return
         
         # Создание интерфейса
         self._create_ui()
         
         # Обновление интерфейса
         self._update_ui()
+        
+        logger.info("Главное окно создано успешно")
     
     def _create_ui(self):
         """Создание элементов интерфейса"""
@@ -165,6 +194,7 @@ class MainWindow:
     
     def _add_files(self):
         """Добавление файлов"""
+        logger.audit("FILE_ADD_START", "Начало добавления файлов")
         file_paths = filedialog.askopenfilenames(
             title="Выбор файлов",
             filetypes=[
@@ -175,10 +205,39 @@ class MainWindow:
         
         if file_paths:
             try:
-                self.data_info.add_files(list(file_paths))
+                logger.info(f"Добавление файлов: {len(file_paths)} файлов")
+                # Валидация файлов перед добавлением
+                invalid_files = []
+                for file_path in file_paths:
+                    is_valid, error_msg = error_handler.validate_file_path(Path(file_path))
+                    if not is_valid:
+                        invalid_files.append((file_path, error_msg))
+                        logger.warning(f"Невалидный файл: {file_path} - {error_msg}")
+                
+                if invalid_files:
+                    error_msg = "Следующие файлы не могут быть добавлены:\n\n"
+                    error_msg += "\n".join([f"{fp}: {msg}" for fp, msg in invalid_files])
+                    messagebox.showwarning("Предупреждение", error_msg)
+                    # Продолжаем с валидными файлами
+                    valid_files = [fp for fp in file_paths if Path(fp) not in [Path(ifp[0]) for ifp in invalid_files]]
+                    if valid_files:
+                        self.data_info.add_files(valid_files)
+                        logger.info(f"Добавлено {len(valid_files)} валидных файлов")
+                else:
+                    self.data_info.add_files(list(file_paths))
+                    logger.info(f"Все {len(file_paths)} файлов добавлены успешно")
+                
                 self._update_ui()
+                logger.audit("FILE_ADD_SUCCESS", f"Успешно добавлено файлов: {len(file_paths)}")
             except Exception as e:
-                messagebox.showerror("Ошибка", f"Ошибка при выполнении операции!\n\n{str(e)}")
+                user_message, recovered = error_handler.handle_error(
+                    e,
+                    context="Добавление файлов",
+                    show_to_user=True
+                )
+                if not recovered:
+                    messagebox.showerror("Ошибка", user_message)
+                logger.audit("FILE_ADD_ERROR", f"Ошибка при добавлении файлов: {str(e)}")
     
     def _delete_files(self):
         """Удаление выбранных файлов"""
@@ -249,22 +308,29 @@ class MainWindow:
     
     def _calc_shunt_kz(self):
         """Расчет шунтов КЗ"""
+        logger.audit("CALC_START", "Начало расчета: Определение шунта КЗ")
         if self.data_info.is_active:
             messagebox.showwarning("Предупреждение", "Расчет уже выполняется!")
             return
         
         def run_calc():
             try:
+                logger.info("Запуск расчета: Определение шунта КЗ")
                 result_path = self.data_info.calc_shunt_kz(self._progress_callback)
+                logger.info(f"Расчет завершен успешно. Результаты: {result_path}")
+                logger.audit("CALC_SUCCESS", f"Расчет завершен: Определение шунта КЗ | Результаты: {result_path}")
                 self.root.after(0, lambda: messagebox.showinfo(
                     "Успешно",
                     f"Операция выполнена успешно!\n\nРезультаты доступны в каталоге:\n{result_path}"
                 ))
             except Exception as e:
-                self.root.after(0, lambda: messagebox.showerror(
-                    "Ошибка",
-                    f"Ошибка при выполнении операции!\n\n{str(e)}"
-                ))
+                user_message, recovered = error_handler.handle_error(
+                    e,
+                    context="Расчет: Определение шунта КЗ",
+                    show_to_user=False  # Покажем пользователю через messagebox
+                )
+                logger.audit("CALC_ERROR", f"Ошибка расчета: Определение шунта КЗ | {str(e)}")
+                self.root.after(0, lambda: messagebox.showerror("Ошибка", user_message))
             finally:
                 self.root.after(0, self._update_ui)
         
@@ -273,22 +339,29 @@ class MainWindow:
     
     def _calc_max_kz_time(self):
         """Расчет предельного времени КЗ"""
+        logger.audit("CALC_START", "Начало расчета: Определение предельного времени КЗ")
         if self.data_info.is_active:
             messagebox.showwarning("Предупреждение", "Расчет уже выполняется!")
             return
         
         def run_calc():
             try:
+                logger.info("Запуск расчета: Определение предельного времени КЗ")
                 result_path = self.data_info.calc_max_kz_time(self._progress_callback)
+                logger.info(f"Расчет завершен успешно. Результаты: {result_path}")
+                logger.audit("CALC_SUCCESS", f"Расчет завершен: Определение предельного времени КЗ | Результаты: {result_path}")
                 self.root.after(0, lambda: messagebox.showinfo(
                     "Успешно",
                     f"Операция выполнена успешно!\n\nРезультаты доступны в каталоге:\n{result_path}"
                 ))
             except Exception as e:
-                self.root.after(0, lambda: messagebox.showerror(
-                    "Ошибка",
-                    f"Ошибка при выполнении операции!\n\n{str(e)}"
-                ))
+                user_message, _ = error_handler.handle_error(
+                    e,
+                    context="Расчет: Определение предельного времени КЗ",
+                    show_to_user=False
+                )
+                logger.audit("CALC_ERROR", f"Ошибка расчета: Определение предельного времени КЗ | {str(e)}")
+                self.root.after(0, lambda: messagebox.showerror("Ошибка", user_message))
             finally:
                 self.root.after(0, self._update_ui)
         
@@ -297,22 +370,29 @@ class MainWindow:
     
     def _calc_dyn_stability(self):
         """Пакетный расчет ДУ"""
+        logger.audit("CALC_START", "Начало расчета: Пакетный расчет ДУ")
         if self.data_info.is_active:
             messagebox.showwarning("Предупреждение", "Расчет уже выполняется!")
             return
         
         def run_calc():
             try:
+                logger.info("Запуск расчета: Пакетный расчет ДУ")
                 result_path = self.data_info.calc_dyn_stability(self._progress_callback)
+                logger.info(f"Расчет завершен успешно. Результаты: {result_path}")
+                logger.audit("CALC_SUCCESS", f"Расчет завершен: Пакетный расчет ДУ | Результаты: {result_path}")
                 self.root.after(0, lambda: messagebox.showinfo(
                     "Успешно",
                     f"Операция выполнена успешно!\n\nРезультаты доступны в каталоге:\n{result_path}"
                 ))
             except Exception as e:
-                self.root.after(0, lambda: messagebox.showerror(
-                    "Ошибка",
-                    f"Ошибка при выполнении операции!\n\n{str(e)}"
-                ))
+                user_message, _ = error_handler.handle_error(
+                    e,
+                    context="Расчет: Пакетный расчет ДУ",
+                    show_to_user=False
+                )
+                logger.audit("CALC_ERROR", f"Ошибка расчета: Пакетный расчет ДУ | {str(e)}")
+                self.root.after(0, lambda: messagebox.showerror("Ошибка", user_message))
             finally:
                 self.root.after(0, self._update_ui)
         
@@ -321,22 +401,29 @@ class MainWindow:
     
     def _calc_mdp_stability(self):
         """Расчет МДП ДУ"""
+        logger.audit("CALC_START", "Начало расчета: Определение МДП ДУ")
         if self.data_info.is_active:
             messagebox.showwarning("Предупреждение", "Расчет уже выполняется!")
             return
         
         def run_calc():
             try:
+                logger.info("Запуск расчета: Определение МДП ДУ")
                 result_path = self.data_info.calc_mdp_stability(self._progress_callback)
+                logger.info(f"Расчет завершен успешно. Результаты: {result_path}")
+                logger.audit("CALC_SUCCESS", f"Расчет завершен: Определение МДП ДУ | Результаты: {result_path}")
                 self.root.after(0, lambda: messagebox.showinfo(
                     "Успешно",
                     f"Операция выполнена успешно!\n\nРезультаты доступны в каталоге:\n{result_path}"
                 ))
             except Exception as e:
-                self.root.after(0, lambda: messagebox.showerror(
-                    "Ошибка",
-                    f"Ошибка при выполнении операции!\n\n{str(e)}"
-                ))
+                user_message, _ = error_handler.handle_error(
+                    e,
+                    context="Расчет: Определение МДП ДУ",
+                    show_to_user=False
+                )
+                logger.audit("CALC_ERROR", f"Ошибка расчета: Определение МДП ДУ | {str(e)}")
+                self.root.after(0, lambda: messagebox.showerror("Ошибка", user_message))
             finally:
                 self.root.after(0, self._update_ui)
         
@@ -345,22 +432,29 @@ class MainWindow:
     
     def _calc_uost_stability(self):
         """Расчет остаточного напряжения при КЗ"""
+        logger.audit("CALC_START", "Начало расчета: Определение остаточного напряжения при КЗ")
         if self.data_info.is_active:
             messagebox.showwarning("Предупреждение", "Расчет уже выполняется!")
             return
         
         def run_calc():
             try:
+                logger.info("Запуск расчета: Определение остаточного напряжения при КЗ")
                 result_path = self.data_info.calc_uost_stability(self._progress_callback)
+                logger.info(f"Расчет завершен успешно. Результаты: {result_path}")
+                logger.audit("CALC_SUCCESS", f"Расчет завершен: Определение остаточного напряжения при КЗ | Результаты: {result_path}")
                 self.root.after(0, lambda: messagebox.showinfo(
                     "Успешно",
                     f"Операция выполнена успешно!\n\nРезультаты доступны в каталоге:\n{result_path}"
                 ))
             except Exception as e:
-                self.root.after(0, lambda: messagebox.showerror(
-                    "Ошибка",
-                    f"Ошибка при выполнении операции!\n\n{str(e)}"
-                ))
+                user_message, _ = error_handler.handle_error(
+                    e,
+                    context="Расчет: Определение остаточного напряжения при КЗ",
+                    show_to_user=False
+                )
+                logger.audit("CALC_ERROR", f"Ошибка расчета: Определение остаточного напряжения при КЗ | {str(e)}")
+                self.root.after(0, lambda: messagebox.showerror("Ошибка", user_message))
             finally:
                 self.root.after(0, self._update_ui)
         
