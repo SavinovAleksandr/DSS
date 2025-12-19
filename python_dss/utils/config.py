@@ -33,7 +33,7 @@ class Config:
         Config._initialized = True
         
         # Путь к директории конфигурации
-        self.config_dir = Path.home() / '.dynstabspace'
+        self.config_dir = Path.home() / '.stablimit'
         self.config_dir.mkdir(parents=True, exist_ok=True)
         
         # Путь к файлу конфигурации
@@ -50,9 +50,9 @@ class Config:
             "paths": {
                 "license_file": "C:/ПАРУС 6/licence.txt",
                 "results_dir": "~/StabLimit",
-                "logs_dir": "~/.dynstabspace/logs",
-                "cache_dir": "~/.dynstabspace/cache",
-                "error_reports_dir": "~/.dynstabspace/error_reports",
+                "logs_dir": "~/.stablimit/logs",
+                "cache_dir": "~/.stablimit/cache",
+                "error_reports_dir": "~/.stablimit/error_reports",
                 "rastr_template_dir": "~/RastrWIN3/SHABLON"
             },
             "calculations": {

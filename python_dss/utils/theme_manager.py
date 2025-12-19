@@ -26,7 +26,7 @@ class ThemeManager:
             return
         
         ThemeManager._initialized = True
-        self.config_dir = Path.home() / '.dynstabspace'
+        self.config_dir = Path.home() / '.stablimit'
         self.config_file = self.config_dir / 'theme_config.json'
         self.config_dir.mkdir(parents=True, exist_ok=True)
         

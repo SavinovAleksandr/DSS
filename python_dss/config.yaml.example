@@ -1,5 +1,5 @@
 # Пример конфигурации StabLimit
-# Скопируйте этот файл в ~/.dynstabspace/config.yaml и настройте под себя
+# Скопируйте этот файл в ~/.stablimit/config.yaml и настройте под себя
 
 # Пути к файлам и директориям
 paths:
@@ -10,13 +10,13 @@ paths:
   results_dir: "~/StabLimit"
   
   # Директория для логов
-  logs_dir: "~/.dynstabspace/logs"
+  logs_dir: "~/.stablimit/logs"
   
   # Директория для кэша
-  cache_dir: "~/.dynstabspace/cache"
+  cache_dir: "~/.stablimit/cache"
   
   # Директория для отчетов об ошибках
-  error_reports_dir: "~/.dynstabspace/error_reports"
+  error_reports_dir: "~/.stablimit/error_reports"
   
   # Директория с шаблонами RASTR
   rastr_template_dir: "~/RastrWIN3/SHABLON"

@@ -19,7 +19,7 @@
 paths:
   license_file: "C:\\ПАРУС 6\\licence.txt"
   results_dir: "~/StabLimit"
-  logs_dir: "~/.dynstabspace/logs"
+  logs_dir: "~/.stablimit/logs"
 
 calculations:
   crt_time_precision: 0.02

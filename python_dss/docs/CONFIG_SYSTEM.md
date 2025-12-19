@@ -7,8 +7,8 @@
 ## Расположение конфигурации
 
 Конфигурация хранится в:
-- **JSON**: `~/.dynstabspace/config.json` (основной формат)
-- **YAML**: `~/.dynstabspace/config.yaml` (опционально, если установлен PyYAML)
+- **JSON**: `~/.stablimit/config.json` (основной формат)
+- **YAML**: `~/.stablimit/config.yaml` (опционально, если установлен PyYAML)
 
 При первом запуске автоматически создается файл конфигурации с настройками по умолчанию.
 
@@ -18,9 +18,9 @@
 paths:
   license_file: "C:/ПАРУС 6/licence.txt"
   results_dir: "~/StabLimit"
-  logs_dir: "~/.dynstabspace/logs"
-  cache_dir: "~/.dynstabspace/cache"
-  error_reports_dir: "~/.dynstabspace/error_reports"
+  logs_dir: "~/.stablimit/logs"
+  cache_dir: "~/.stablimit/cache"
+  error_reports_dir: "~/.stablimit/error_reports"
   rastr_template_dir: "~/RastrWIN3/SHABLON"
 
 calculations:
@@ -105,7 +105,7 @@ max_bytes = config.get("logging.max_bytes", 10 * 1024 * 1024)
 
 ### Пути
 - ✅ `Path.home() / "StabLimit"` → `config.get_path("paths.results_dir")`
-- ✅ `Path.home() / '.dynstabspace' / 'logs'` → `config.get_path("paths.logs_dir")`
+- ✅ `Path.home() / '.stablimit' / 'logs'` → `config.get_path("paths.logs_dir")`
 - ✅ `"C:/ПАРУС 6/licence.txt"` → `config.get_path("paths.license_file")`
 - ✅ Пути к кэшу, отчетам об ошибках, шаблонам RASTR
 
