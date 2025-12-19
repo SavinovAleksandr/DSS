@@ -7,6 +7,7 @@ from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 from typing import Optional
 import threading
+from PIL import Image, ImageTk
 
 from data_info import DataInfo
 from utils.license import check_license
@@ -23,6 +24,20 @@ class MainWindow:
         self.root = tk.Tk()
         self.root.title("DynStabSpace - Расчет динамической устойчивости")
         self.root.geometry("800x700")
+        
+        # Установка иконки окна
+        try:
+            icon_path = Path(__file__).parent.parent / "resources" / "StabLimit.png"
+            if icon_path.exists():
+                # Для tkinter используем iconphoto (поддерживает PNG)
+                img = Image.open(icon_path)
+                photo = ImageTk.PhotoImage(img)
+                self.root.iconphoto(False, photo)
+                # Сохраняем ссылку, чтобы изображение не удалилось
+                self.root._icon_photo = photo
+                logger.info(f"Иконка окна установлена: {icon_path}")
+        except Exception as e:
+            logger.warning(f"Не удалось установить иконку окна: {e}")
         
         # Проверка лицензии
         try:
