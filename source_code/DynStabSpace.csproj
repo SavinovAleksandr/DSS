@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <AssemblyName>DynStabSpace</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>True</UseWPF>
+    <TargetFramework>net472</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="settings.baml" />
+    <None Remove="mainwindow.baml" />
+    <None Remove="photo_2025-10-07_22-31-38.ico" />
+    <EmbeddedResource Include="settings.baml" LogicalName="settings.baml" />
+    <EmbeddedResource Include="mainwindow.baml" LogicalName="mainwindow.baml" />
+    <EmbeddedResource Include="photo_2025-10-07_22-31-38.ico" LogicalName="photo_2025-10-07_22-31-38.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Core">
+      <HintPath>../../.dotnet/shared/Microsoft.NETCore.App/8.0.22/System.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="EPPlus">
+      <HintPath>../EPPlus.dll</HintPath>
+    </Reference>
+    <Reference Include="OxyPlot">
+      <HintPath>../OxyPlot.dll</HintPath>
+    </Reference>
+    <Reference Include="OxyPlot.Wpf">
+      <HintPath>../OxyPlot.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="Microsoft.CSharp">
+      <HintPath>../../.dotnet/shared/Microsoft.NETCore.App/8.0.22/Microsoft.CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="WindowsBase">
+      <HintPath>../../.dotnet/shared/Microsoft.NETCore.App/8.0.22/WindowsBase.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

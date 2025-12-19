@@ -1,0 +1,33 @@
+
+╔══════════════════════════════════════════════════════════════╗
+║  ИНСТРУКЦИЯ ПО РУЧНОЙ ДЕКОМПИЛЯЦИИ                          ║
+╚══════════════════════════════════════════════════════════════╝
+
+Для декомпиляции DynStabSpace.exe выполните следующие шаги:
+
+1. ОТКРОЙТЕ ILSpy:
+   open /Applications/ILSpy.app
+
+2. ОТКРОЙТЕ ФАЙЛ:
+   - В меню: File → Open
+   - Или нажмите: Cmd+O
+   - Выберите файл: /Users/asavinov/DSS/DynStabSpace.exe
+
+3. СОХРАНИТЕ КОД:
+   - В меню: File → Save Code...
+   - Или нажмите: Cmd+Shift+S
+   - Выберите папку: /Users/asavinov/DSS/source_code
+   - Нажмите: Save
+
+4. ПРОВЕРЬТЕ РЕЗУЛЬТАТ:
+   ls -la source_code/
+
+АЛЬТЕРНАТИВНЫЙ МЕТОД (если установлен dotnet):
+
+1. Установите ilspycmd:
+   dotnet tool install --global ilspycmd
+
+2. Выполните декомпиляцию:
+   ilspycmd DynStabSpace.exe -o source_code --project-file
+
+═══════════════════════════════════════════════════════════════
