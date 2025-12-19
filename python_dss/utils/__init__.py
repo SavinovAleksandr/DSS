@@ -11,6 +11,8 @@ from .logger import logger, Logger
 from .error_handler import error_handler, ErrorHandler
 from .theme_manager import theme_manager, ThemeManager
 from .validator import DataValidator, ValidationResult, ValidationStatus
+from .cache import cache_manager, CacheManager, cached, timed
+from .performance import performance_optimizer, PerformanceOptimizer
 
 __all__ = [
     'InitialDataException',
@@ -24,6 +26,12 @@ __all__ = [
     'ThemeManager',
     'DataValidator',
     'ValidationResult',
-    'ValidationStatus'
+    'ValidationStatus',
+    'cache_manager',
+    'CacheManager',
+    'cached',
+    'timed',
+    'performance_optimizer',
+    'PerformanceOptimizer'
 ]
 
