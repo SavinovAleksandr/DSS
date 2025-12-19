@@ -10,6 +10,7 @@ from .exceptions import (
 from .logger import logger, Logger
 from .error_handler import error_handler, ErrorHandler
 from .theme_manager import theme_manager, ThemeManager
+from .validator import DataValidator, ValidationResult, ValidationStatus
 
 __all__ = [
     'InitialDataException',
@@ -20,6 +21,9 @@ __all__ = [
     'error_handler',
     'ErrorHandler',
     'theme_manager',
-    'ThemeManager'
+    'ThemeManager',
+    'DataValidator',
+    'ValidationResult',
+    'ValidationStatus'
 ]
 

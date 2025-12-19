@@ -5,15 +5,15 @@
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 from pathlib import Path
-from typing import Optional
 import threading
 
 from data_info import DataInfo
 from utils.license import check_license
-from utils.exceptions import UserLicenseException, InitialDataException
+from utils.exceptions import UserLicenseException
 from utils.logger import logger
 from utils.error_handler import error_handler
 from utils.theme_manager import theme_manager
+from utils.validator import DataValidator
 
 
 class ModernMainWindow:
@@ -69,6 +69,13 @@ class ModernMainWindow:
             self.root.destroy()
             return
         
+        # Инициализация валидатора
+        self.validator = DataValidator(self.data_info)
+        
+        # Хранилище для индикаторов валидации
+        self.validation_indicators = {}
+        self.calc_buttons = {}
+        
         # Создание интерфейса
         self._create_ui()
         self._setup_keyboard_shortcuts()
@@ -76,6 +83,7 @@ class ModernMainWindow:
         
         # Обновление интерфейса
         self._update_ui()
+        self._validate_all()
         
         logger.info("Главное окно создано успешно")
     
@@ -108,27 +116,27 @@ class ModernMainWindow:
         # Ремонтные схемы
         self._create_file_row(files_frame, "Ремонтные схемы:", 0, 
                              lambda: self.data_info.rems.filename or "Не загружен",
-                             self._clear_rems)
+                             self._clear_rems, file_type="rems")
         
         # Автоматика
         self._create_file_row(files_frame, "Автоматика:", 1,
                              lambda: self.data_info.lapnu.filename or "Не загружен",
-                             self._clear_lapnu)
+                             self._clear_lapnu, file_type="lapnu")
         
         # Траектория
         self._create_file_row(files_frame, "Траектория:", 2,
                              lambda: self.data_info.vir.filename or "Не загружен",
-                             self._clear_vir)
+                             self._clear_vir, file_type="vir")
         
         # Сечения
         self._create_file_row(files_frame, "Сечения:", 3,
                              lambda: self.data_info.sechen.filename or "Не загружен",
-                             self._clear_sechen)
+                             self._clear_sechen, file_type="sechen")
         
         # Графический вывод
         self._create_file_row(files_frame, "Графический вывод:", 4,
                              lambda: self.data_info.grf.filename or "Не загружен",
-                             self._clear_grf)
+                             self._clear_grf, file_type="grf")
         
         # Кнопки управления
         buttons_frame = ctk.CTkFrame(main_container)
@@ -155,11 +163,14 @@ class ModernMainWindow:
             ("Определение остаточного напряжения при КЗ", self._calc_uost_stability),
         ]
         
-        for i, (text, command) in enumerate(calc_buttons):
+        calc_types = ["shunt_kz", "max_kz_time", "dyn_stability", "mdp_stability", "uost_stability"]
+        for i, ((text, command), calc_type) in enumerate(zip(calc_buttons, calc_types)):
             row = i // 2
             col = i % 2
-            ctk.CTkButton(calc_frame, text=text, command=command,
-                         height=40).grid(row=row, column=col, padx=5, pady=5, sticky="ew")
+            btn = ctk.CTkButton(calc_frame, text=text, command=command,
+                               height=40, state="normal")
+            btn.grid(row=row, column=col, padx=5, pady=5, sticky="ew")
+            self.calc_buttons[calc_type] = btn
         
         calc_frame.grid_columnconfigure(0, weight=1)
         calc_frame.grid_columnconfigure(1, weight=1)
@@ -180,13 +191,23 @@ class ModernMainWindow:
                                       font=ctk.CTkFont(size=10))
         self.status_bar.pack(side="bottom", fill="x", padx=10, pady=5)
     
-    def _create_file_row(self, parent, label_text, row, get_text_func, clear_func):
-        """Создать строку для отображения файла"""
+    def _create_file_row(self, parent, label_text, row, get_text_func, clear_func, file_type: str = ""):
+        """Создать строку для отображения файла с валидацией"""
         row_frame = ctk.CTkFrame(parent)
         row_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(row_frame, text=label_text, width=150).pack(side="left", padx=5)
         
+        # Индикатор валидации
+        validation_label = ctk.CTkLabel(
+            row_frame, text="❓", width=30,
+            font=ctk.CTkFont(size=16)
+        )
+        validation_label.pack(side="left", padx=2)
+        if file_type:
+            self.validation_indicators[file_type] = validation_label
+        
+        # Метка с путем к файлу
         file_label = ctk.CTkLabel(row_frame, text=get_text_func(), anchor="w", 
                                  text_color="gray", cursor="hand2")
         file_label.pack(side="left", fill="x", expand=True, padx=5)
@@ -260,10 +281,11 @@ class ModernMainWindow:
         # Обновление меток файлов
         for i in range(5):
             label = getattr(self, f"_file_label_{i}", None)
-            get_text = getattr(self, f"_file_get_text_{i}", None)
-            if label and get_text:
-                text = get_text()
-                label.configure(text=text, text_color="gray" if "Не загружен" in text else None)
+            get_text_func = getattr(self, f"_file_get_text_{i}", None)
+            if label and get_text_func and callable(get_text_func):
+                text = get_text_func()
+                text_color = "gray" if "Не загружен" in text else None
+                label.configure(text=text, text_color=text_color)
         
         # Обновление прогресса
         if self.data_info.max_progress > 0:
@@ -273,6 +295,59 @@ class ModernMainWindow:
         else:
             self.progress_bar.set(0)
             self.progress_label.configure(text="")
+        
+        # Валидация после обновления
+        self._validate_all()
+    
+    def _validate_all(self):
+        """Валидация всех данных и обновление индикаторов"""
+        # Очистка кэша валидатора
+        self.validator.clear_cache()
+        
+        # Валидация всех файлов
+        validation_results = self.validator.validate_all_files()
+        
+        # Обновление индикаторов
+        for file_type, result in validation_results.items():
+            if file_type in self.validation_indicators:
+                indicator = self.validation_indicators[file_type]
+                indicator.configure(text=result.icon)
+                
+                # Tooltip с деталями
+                tooltip_text = result.message
+                if result.details:
+                    tooltip_text += f"\n{result.details}"
+                # CustomTkinter не поддерживает tooltip напрямую, используем title
+                indicator.configure(text=result.icon)
+        
+        # Обновление статус-бара
+        summary = self.validator.get_validation_summary()
+        if "✅" in summary:
+            self.status_bar.configure(text=summary, text_color="green")
+        elif "⚠️" in summary:
+            self.status_bar.configure(text=summary, text_color="orange")
+        else:
+            self.status_bar.configure(text=summary)
+        
+        # Проверка и блокировка кнопок расчетов
+        self._update_calc_buttons_state()
+    
+    def _update_calc_buttons_state(self):
+        """Обновление состояния кнопок расчетов на основе валидации"""
+        calc_types = ["shunt_kz", "max_kz_time", "dyn_stability", "mdp_stability", "uost_stability"]
+        
+        for calc_type in calc_types:
+            if calc_type in self.calc_buttons:
+                btn = self.calc_buttons[calc_type]
+                is_valid, missing_fields = self.validator.validate_calculation_requirements(calc_type)
+                
+                if is_valid:
+                    btn.configure(state="normal")
+                else:
+                    btn.configure(state="disabled")
+                    # Можно добавить tooltip с информацией о недостающих полях
+                    missing_text = ", ".join(missing_fields)
+                    logger.debug(f"Кнопка {calc_type} заблокирована. Отсутствуют: {missing_text}")
     
     def _add_files(self):
         """Добавление файлов"""
@@ -314,6 +389,7 @@ class ModernMainWindow:
                 logger.info(f"Все {len(file_paths)} файлов добавлены успешно")
             
             self._update_ui()
+            self._validate_all()  # Валидация после добавления
             self.status_bar.configure(text=f"Добавлено файлов: {len(file_paths)}")
             logger.audit("FILE_ADD_SUCCESS", f"Успешно добавлено файлов: {len(file_paths)}")
         except Exception as e:
@@ -337,11 +413,13 @@ class ModernMainWindow:
     
     def _deselect_rgms(self):
         """Снятие выбора с расчетных режимов"""
-        pass  # Для Textbox не применимо
+        # Для Textbox не применимо
+        pass
     
     def _deselect_scns(self):
         """Снятие выбора с аварийных процессов"""
-        pass  # Для Textbox не применимо
+        # Для Textbox не применимо
+        pass
     
     def _clear_rems(self):
         """Очистка ремонтных схем"""
@@ -393,6 +471,16 @@ class ModernMainWindow:
     
     def _calc_shunt_kz(self):
         """Расчет шунтов КЗ"""
+        # Проверка валидности данных перед расчетом
+        is_valid, missing_fields = self.validator.validate_calculation_requirements("shunt_kz")
+        if not is_valid:
+            missing_text = ", ".join(missing_fields)
+            messagebox.showwarning(
+                "Недостаточно данных",
+                f"Для выполнения расчета необходимо:\n\n{missing_text}\n\nПожалуйста, загрузите недостающие данные."
+            )
+            return
+        
         logger.audit("CALC_START", "Начало расчета: Определение шунта КЗ")
         if self.data_info.is_active:
             messagebox.showwarning("Предупреждение", "Расчет уже выполняется!")
@@ -427,6 +515,16 @@ class ModernMainWindow:
     
     def _calc_max_kz_time(self):
         """Расчет предельного времени КЗ"""
+        # Проверка валидности данных перед расчетом
+        is_valid, missing_fields = self.validator.validate_calculation_requirements("max_kz_time")
+        if not is_valid:
+            missing_text = ", ".join(missing_fields)
+            messagebox.showwarning(
+                "Недостаточно данных",
+                f"Для выполнения расчета необходимо:\n\n{missing_text}\n\nПожалуйста, загрузите недостающие данные."
+            )
+            return
+        
         logger.audit("CALC_START", "Начало расчета: Определение предельного времени КЗ")
         if self.data_info.is_active:
             messagebox.showwarning("Предупреждение", "Расчет уже выполняется!")
@@ -461,6 +559,16 @@ class ModernMainWindow:
     
     def _calc_dyn_stability(self):
         """Пакетный расчет ДУ"""
+        # Проверка валидности данных перед расчетом
+        is_valid, missing_fields = self.validator.validate_calculation_requirements("dyn_stability")
+        if not is_valid:
+            missing_text = ", ".join(missing_fields)
+            messagebox.showwarning(
+                "Недостаточно данных",
+                f"Для выполнения расчета необходимо:\n\n{missing_text}\n\nПожалуйста, загрузите недостающие данные."
+            )
+            return
+        
         logger.audit("CALC_START", "Начало расчета: Пакетный расчет ДУ")
         if self.data_info.is_active:
             messagebox.showwarning("Предупреждение", "Расчет уже выполняется!")
@@ -495,6 +603,16 @@ class ModernMainWindow:
     
     def _calc_mdp_stability(self):
         """Расчет МДП ДУ"""
+        # Проверка валидности данных перед расчетом
+        is_valid, missing_fields = self.validator.validate_calculation_requirements("mdp_stability")
+        if not is_valid:
+            missing_text = ", ".join(missing_fields)
+            messagebox.showwarning(
+                "Недостаточно данных",
+                f"Для выполнения расчета необходимо:\n\n{missing_text}\n\nПожалуйста, загрузите недостающие данные."
+            )
+            return
+        
         logger.audit("CALC_START", "Начало расчета: Определение МДП ДУ")
         if self.data_info.is_active:
             messagebox.showwarning("Предупреждение", "Расчет уже выполняется!")
@@ -529,6 +647,16 @@ class ModernMainWindow:
     
     def _calc_uost_stability(self):
         """Расчет остаточного напряжения при КЗ"""
+        # Проверка валидности данных перед расчетом
+        is_valid, missing_fields = self.validator.validate_calculation_requirements("uost_stability")
+        if not is_valid:
+            missing_text = ", ".join(missing_fields)
+            messagebox.showwarning(
+                "Недостаточно данных",
+                f"Для выполнения расчета необходимо:\n\n{missing_text}\n\nПожалуйста, загрузите недостающие данные."
+            )
+            return
+        
         logger.audit("CALC_START", "Начало расчета: Определение остаточного напряжения при КЗ")
         if self.data_info.is_active:
             messagebox.showwarning("Предупреждение", "Расчет уже выполняется!")
