@@ -139,7 +139,7 @@ class ModernMainWindow:
         self.scns_listbox.pack(fill="x", padx=10, pady=(0, 10))
         
         # Файлы
-        files_frame = ctk.CTkFrame(main_container, label_text="Исходные данные")
+        files_frame = ctk.CTkLabelFrame(main_container, text="Исходные данные")
         files_frame.pack(fill="x", pady=10)
         
         # Ремонтные схемы
@@ -181,7 +181,7 @@ class ModernMainWindow:
                      command=self._toggle_theme, width=100).pack(side="right", padx=5)
         
         # Кнопки расчетов
-        calc_frame = ctk.CTkFrame(main_container, label_text="Расчеты")
+        calc_frame = ctk.CTkLabelFrame(main_container, text="Расчеты")
         calc_frame.pack(fill="x", pady=10)
         
         calc_buttons = [
