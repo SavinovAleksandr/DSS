@@ -1,5 +1,5 @@
 """
-Исключения для DynStabSpace
+Исключения для StabLimit
 """
 
 

@@ -1,5 +1,5 @@
 """
-Модели данных для DynStabSpace
+Модели данных для StabLimit
 """
 
 from .file_info import FileInfo

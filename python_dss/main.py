@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Главный файл запуска DynStabSpace
+Главный файл запуска StabLimit
 """
 
 import sys
@@ -27,7 +27,7 @@ from utils.config import config
 def main():
     """Главная функция"""
     try:
-        logger.info("Запуск DynStabSpace")
+        logger.info("Запуск StabLimit")
         logger.audit("APPLICATION_START", "Запуск приложения")
         
         # Выбор UI: проверяем переменную окружения, конфиг или используем современный UI по умолчанию
@@ -49,7 +49,7 @@ def main():
         
         app.run()
         
-        logger.info("Завершение работы DynStabSpace")
+        logger.info("Завершение работы StabLimit")
         logger.audit("APPLICATION_EXIT", "Нормальное завершение работы")
         
     except UserLicenseException as e:

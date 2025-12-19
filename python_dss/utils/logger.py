@@ -1,5 +1,5 @@
 """
-Система логирования для DynStabSpace
+Система логирования для StabLimit
 """
 
 import logging
@@ -27,7 +27,7 @@ class Logger:
             return
         
         Logger._initialized = True
-        self.logger = logging.getLogger('DynStabSpace')
+        self.logger = logging.getLogger('StabLimit')
         self.logger.setLevel(logging.DEBUG)
         
         # Предотвращение дублирования логов
@@ -51,7 +51,7 @@ class Logger:
         self.logger.addHandler(console_handler)
         
         # Файловый обработчик (DEBUG и выше) с ротацией по размеру
-        log_file = self.log_dir / 'dynstabspace.log'
+        log_file = self.log_dir / 'stablimit.log'
         max_bytes = config.get("logging.max_bytes", 10 * 1024 * 1024)
         backup_count = config.get("logging.backup_count", 5)
         file_handler = logging.handlers.RotatingFileHandler(
@@ -92,7 +92,7 @@ class Logger:
             datefmt='%Y-%m-%d %H:%M:%S'
         )
         audit_handler.setFormatter(audit_format)
-        self.audit_logger = logging.getLogger('DynStabSpace.Audit')
+        self.audit_logger = logging.getLogger('StabLimit.Audit')
         self.audit_logger.addHandler(audit_handler)
         self.audit_logger.setLevel(logging.INFO)
         
@@ -131,7 +131,7 @@ class Logger:
     
     def get_log_file_path(self) -> Path:
         """Получить путь к основному лог-файлу"""
-        return self.log_dir / 'dynstabspace.log'
+        return self.log_dir / 'stablimit.log'
     
     def get_error_log_file_path(self) -> Path:
         """Получить путь к лог-файлу ошибок"""

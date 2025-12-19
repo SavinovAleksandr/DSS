@@ -1,4 +1,4 @@
-# Пример конфигурации DynStabSpace
+# Пример конфигурации StabLimit
 # Скопируйте этот файл в ~/.dynstabspace/config.yaml и настройте под себя
 
 # Пути к файлам и директориям
@@ -7,7 +7,7 @@ paths:
   license_file: "C:/ПАРУС 6/licence.txt"
   
   # Директория для сохранения результатов расчетов
-  results_dir: "~/DynStabSpace"
+  results_dir: "~/StabLimit"
   
   # Директория для логов
   logs_dir: "~/.dynstabspace/logs"

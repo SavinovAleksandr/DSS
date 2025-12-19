@@ -49,7 +49,7 @@ class Config:
         return {
             "paths": {
                 "license_file": "C:/ПАРУС 6/licence.txt",
-                "results_dir": "~/DynStabSpace",
+                "results_dir": "~/StabLimit",
                 "logs_dir": "~/.dynstabspace/logs",
                 "cache_dir": "~/.dynstabspace/cache",
                 "error_reports_dir": "~/.dynstabspace/error_reports",

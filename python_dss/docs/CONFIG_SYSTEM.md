@@ -17,7 +17,7 @@
 ```yaml
 paths:
   license_file: "C:/ПАРУС 6/licence.txt"
-  results_dir: "~/DynStabSpace"
+  results_dir: "~/StabLimit"
   logs_dir: "~/.dynstabspace/logs"
   cache_dir: "~/.dynstabspace/cache"
   error_reports_dir: "~/.dynstabspace/error_reports"
@@ -104,7 +104,7 @@ max_bytes = config.get("logging.max_bytes", 10 * 1024 * 1024)
 Все следующие настройки были мигрированы в конфигурацию:
 
 ### Пути
-- ✅ `Path.home() / "DynStabSpace"` → `config.get_path("paths.results_dir")`
+- ✅ `Path.home() / "StabLimit"` → `config.get_path("paths.results_dir")`
 - ✅ `Path.home() / '.dynstabspace' / 'logs'` → `config.get_path("paths.logs_dir")`
 - ✅ `"C:/ПАРУС 6/licence.txt"` → `config.get_path("paths.license_file")`
 - ✅ Пути к кэшу, отчетам об ошибках, шаблонам RASTR

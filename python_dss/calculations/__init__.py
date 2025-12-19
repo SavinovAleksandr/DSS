@@ -1,5 +1,5 @@
 """
-Модули расчетов DynStabSpace
+Модули расчетов StabLimit
 """
 
 from .shunt_kz import ShuntKZCalc

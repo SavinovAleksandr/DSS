@@ -27,7 +27,7 @@ class ModernMainWindow:
         ctk.set_default_color_theme("blue")
         
         self.root = ctk.CTk()
-        self.root.title("DynStabSpace - Расчет динамической устойчивости")
+        self.root.title("StabLimit - Расчет динамической устойчивости")
         self.root.geometry("900x750")
         self.root.minsize(800, 600)
         
@@ -106,7 +106,7 @@ class ModernMainWindow:
     def _create_ui(self):
         """Создание элементов интерфейса"""
         # Основной контейнер с прокруткой
-        main_container = ctk.CTkScrollableFrame(self.root, label_text="DynStabSpace")
+        main_container = ctk.CTkScrollableFrame(self.root, label_text="StabLimit")
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Расчетные режимы

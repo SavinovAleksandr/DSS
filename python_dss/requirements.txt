@@ -1,4 +1,4 @@
-# Python зависимости для DynStabSpace
+# Python зависимости для StabLimit
 
 # Работа с Excel
 openpyxl>=3.1.0

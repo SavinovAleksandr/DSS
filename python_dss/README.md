@@ -1,6 +1,6 @@
-# DynStabSpace - Python Implementation
+# StabLimit - Python Implementation
 
-Полная Python реализация программы DynStabSpace для расчетов динамической устойчивости энергосистем.
+Полная Python реализация программы StabLimit для расчетов динамической устойчивости энергосистем.
 
 ## Структура проекта
 

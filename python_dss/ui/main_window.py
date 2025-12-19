@@ -22,7 +22,7 @@ class MainWindow:
     def __init__(self):
         """Инициализация главного окна"""
         self.root = tk.Tk()
-        self.root.title("DynStabSpace - Расчет динамической устойчивости")
+        self.root.title("StabLimit - Расчет динамической устойчивости")
         self.root.geometry("800x700")
         
         # Установка иконки окна
