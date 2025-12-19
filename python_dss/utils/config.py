@@ -88,6 +88,9 @@ class Config:
                 "max_workers": None,  # None = автоматически
                 "cache_enabled": True,
                 "cache_ttl": 3600  # 1 час
+            },
+            "license": {
+                "disable_check": False  # True для отключения проверки лицензии (только для тестирования!)
             }
         }
     

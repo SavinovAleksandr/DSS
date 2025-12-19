@@ -18,6 +18,17 @@ def check_license() -> bool:
     Raises:
         UserLicenseException: Если файл лицензии не найден или неверен
     """
+    # Проверка отключения лицензии (для тестирования)
+    # Можно отключить через переменную окружения или конфиг
+    disable_license = os.environ.get('STABLIMIT_DISABLE_LICENSE', '').lower() == 'true'
+    if not disable_license:
+        disable_license = config.get("license.disable_check", False)
+    
+    if disable_license:
+        from .logger import logger
+        logger.warning("⚠️  Проверка лицензии ОТКЛЮЧЕНА (режим тестирования)")
+        return True
+    
     machine_name = os.environ.get('COMPUTERNAME', '') or os.environ.get('HOSTNAME', '')
     
     # Путь к файлу лицензии (из конфигурации)
