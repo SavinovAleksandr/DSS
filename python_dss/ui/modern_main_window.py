@@ -22,14 +22,16 @@ class ModernMainWindow:
     
     def __init__(self):
         """Инициализация главного окна"""
-        # Настройка CustomTkinter
-        ctk.set_appearance_mode(theme_manager.theme_mode)
-        ctk.set_default_color_theme("blue")
-        
-        self.root = ctk.CTk()
-        self.root.title("StabLimit - Расчет динамической устойчивости")
-        self.root.geometry("900x750")
-        self.root.minsize(800, 600)
+        self.root = None
+        try:
+            # Настройка CustomTkinter
+            ctk.set_appearance_mode(theme_manager.theme_mode)
+            ctk.set_default_color_theme("blue")
+            
+            self.root = ctk.CTk()
+            self.root.title("StabLimit - Расчет динамической устойчивости")
+            self.root.geometry("900x750")
+            self.root.minsize(800, 600)
         
         # Установка иконки окна
         try:
@@ -93,20 +95,39 @@ class ModernMainWindow:
         self.calc_buttons = {}
         
         # Создание интерфейса
-        self._create_ui()
-        self._setup_keyboard_shortcuts()
-        self._setup_drag_drop()
-        
-        # Обновление интерфейса
-        self._update_ui()
-        self._validate_all()
-        
-        logger.info("Главное окно создано успешно")
+        try:
+            self._create_ui()
+            self._setup_keyboard_shortcuts()
+            self._setup_drag_drop()
+            
+            # Обновление интерфейса
+            self._update_ui()
+            self._validate_all()
+            
+            logger.info("Главное окно создано успешно")
+        except Exception as e:
+            # Уничтожаем окно при любой ошибке инициализации
+            if self.root is not None:
+                try:
+                    self.root.destroy()
+                except:
+                    pass
+            # Пробрасываем исключение дальше
+            raise
     
     def _create_ui(self):
         """Создание элементов интерфейса"""
         # Основной контейнер с прокруткой
-        main_container = ctk.CTkScrollableFrame(self.root, label_text="StabLimit")
+        # Исправление: убираем label_text, так как он не поддерживается в некоторых версиях CustomTkinter
+        try:
+            main_container = ctk.CTkScrollableFrame(self.root, label_text="StabLimit")
+        except TypeError:
+            # Если label_text не поддерживается, создаем без него
+            main_container = ctk.CTkScrollableFrame(self.root)
+            # Добавляем заголовок отдельно
+            title_label = ctk.CTkLabel(self.root, text="StabLimit", 
+                                       font=ctk.CTkFont(size=16, weight="bold"))
+            title_label.pack(pady=(10, 0))
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Расчетные режимы
