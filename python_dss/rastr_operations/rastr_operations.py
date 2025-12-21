@@ -145,9 +145,9 @@ class RastrOperations:
         col_dv_min = table.Cols.Item("dv_min")
         
         if iterations is not None:
-            col_it_max.set_Z(0, iterations)
+            col_it_max.SetZ(0, iterations)
         if voltage is not None:
-            col_dv_min.set_Z(0, voltage)
+            col_dv_min.SetZ(0, voltage)
         
         # AST_OK = 0
         return self._rastr.rgm(param) == 0
@@ -167,10 +167,10 @@ class RastrOperations:
         r_part = l * r / 100.0
         x_part = l * x / 100.0
         
-        col_r.set_Z(id1, r_part)
-        col_r.set_Z(id2, r - r_part)
-        col_x.set_Z(id1, x_part)
-        col_x.set_Z(id2, x - x_part)
+        col_r.SetZ(id1, r_part)
+        col_r.SetZ(id2, r - r_part)
+        col_x.SetZ(id1, x_part)
+        col_x.SetZ(id2, x - x_part)
         
         self.rgm()
     
@@ -179,9 +179,9 @@ class RastrOperations:
         table = self._rastr.Tables.Item("DFWAutoActionScn")
         col_formula = table.Cols.Item("Formula")
         
-        col_formula.set_Z(x_id, str(x).replace(",", "."))
+        col_formula.SetZ(x_id, str(x).replace(",", "."))
         if r != -1.0:
-            col_formula.set_Z(r_id, str(r).replace(",", "."))
+            col_formula.SetZ(r_id, str(r).replace(",", "."))
     
     def selection(self, table_name: str, selection: str = "") -> List[int]:
         """Выборка строк по условию"""
@@ -212,42 +212,36 @@ class RastrOperations:
                 table.SetSel(selection_or_index)
                 idx = table.FindNextSel(-1)
                 if idx != -1:
-                    # Пытаемся вызвать get_Z разными способами
+                    # Пытаемся вызвать GetZ (с заглавной буквы, как в COM-интерфейсе)
                     try:
-                        return col.get_Z(idx)
-                    except AttributeError as e:
-                        # Если get_Z не найден, пробуем получить DispID через GetIDsOfNames
+                        return col.GetZ(idx)
+                    except AttributeError:
+                        # Fallback на get_Z (маленькая буква) для совместимости
                         try:
-                            import pythoncom
-                            # Получаем DispID для метода get_Z
-                            dispid = col._oleobj_.GetIDsOfNames(0, ("get_Z",))
-                            return col._oleobj_.Invoke(dispid[0], 0, pythoncom.DISPATCH_METHOD, 1, idx)
-                        except:
+                            return col.get_Z(idx)
+                        except AttributeError as e:
                             # Последняя попытка - через __getitem__
                             try:
                                 return col[idx]
                             except:
-                                raise AttributeError(f"Не удалось вызвать get_Z для колонки {col_name}: {e}")
+                                raise AttributeError(f"Не удалось вызвать GetZ/get_Z для колонки {col_name}: {e}")
                 return None
             else:
                 # Проверяем, что индекс валиден
                 if selection_or_index < 0 or selection_or_index >= table.Size:
                     raise IndexError(f"Индекс {selection_or_index} вне диапазона таблицы {table_name} (размер: {table.Size})")
                 try:
-                    return col.get_Z(selection_or_index)
-                except AttributeError as e:
-                    # Если get_Z не найден, пробуем получить DispID через GetIDsOfNames
+                    return col.GetZ(selection_or_index)
+                except AttributeError:
+                    # Fallback на get_Z (маленькая буква) для совместимости
                     try:
-                        import pythoncom
-                        # Получаем DispID для метода get_Z
-                        dispid = col._oleobj_.GetIDsOfNames(0, ("get_Z",))
-                        return col._oleobj_.Invoke(dispid[0], 0, pythoncom.DISPATCH_METHOD, 1, selection_or_index)
-                    except:
+                        return col.get_Z(selection_or_index)
+                    except AttributeError as e:
                         # Последняя попытка - через __getitem__
                         try:
                             return col[selection_or_index]
                         except:
-                            raise AttributeError(f"Не удалось вызвать get_Z для колонки {col_name}: {e}")
+                            raise AttributeError(f"Не удалось вызвать GetZ/get_Z для колонки {col_name}: {e}")
         except Exception as e:
             from utils.logger import logger
             logger.error(f"Ошибка при получении значения из {table_name}.{col_name} (индекс/выборка: {selection_or_index}): {e}")
@@ -266,20 +260,17 @@ class RastrOperations:
             
             col = table.Cols.Item(col_name)
             try:
-                col.set_Z(index, value)
-            except AttributeError as e:
-                # Если set_Z не найден, пробуем получить DispID через GetIDsOfNames
+                col.SetZ(index, value)
+            except AttributeError:
+                # Fallback на set_Z (маленькая буква) для совместимости
                 try:
-                    import pythoncom
-                    # Получаем DispID для метода set_Z
-                    dispid = col._oleobj_.GetIDsOfNames(0, ("set_Z",))
-                    col._oleobj_.Invoke(dispid[0], 0, pythoncom.DISPATCH_METHOD, 1, index, value)
-                except:
+                    col.set_Z(index, value)
+                except AttributeError as e:
                     # Последняя попытка - через прямое присваивание
                     try:
                         col[index] = value
                     except:
-                        raise AttributeError(f"Не удалось вызвать set_Z для колонки {col_name}: {e}")
+                        raise AttributeError(f"Не удалось вызвать SetZ/set_Z для колонки {col_name}: {e}")
             return True
         except Exception as e:
             from utils.logger import logger
@@ -297,7 +288,7 @@ class RastrOperations:
             idx = table.FindNextSel(-1)
             
             if idx != -1:
-                col.set_Z(idx, value)
+                col.SetZ(idx, value)
                 return True
             return False
         except Exception as e:
@@ -315,8 +306,8 @@ class RastrOperations:
         col_type = table.Cols.Item("Type")
         
         table.AddRow()
-        col_num.set_Z(0, 1)
-        col_type.set_Z(0, 1)
+        col_num.SetZ(0, 1)
+        col_type.SetZ(0, 1)
         
         self._rastr.LAPNUSMZU("1" + lpn)
         self.add(scn_file)
@@ -339,7 +330,7 @@ class RastrOperations:
         while self._rastr.step_ut("z") == 0:
             pass
         
-        return col_sum_kfc.get_Z(0)
+        return col_sum_kfc.GetZ(0)
     
     def step(self, step_value: float = 1.0, init: bool = True) -> float:
         """Выполнение шага утяжеления"""
@@ -350,10 +341,10 @@ class RastrOperations:
         if init:
             self._rastr.step_ut("i")
         
-        col_kfc.set_Z(0, step_value)
+        col_kfc.SetZ(0, step_value)
         self._rastr.step_ut("z")
         
-        return col_sum_kfc.get_Z(0)
+        return col_sum_kfc.GetZ(0)
     
     def dyn_settings(self):
         """Настройка параметров динамики"""
@@ -429,12 +420,12 @@ class RastrOperations:
                 table.AddRow()
             
             col_tras = table.Cols.Item("Tras")
-            original_time = col_tras.get_Z(0)
+            original_time = col_tras.GetZ(0)
             
             self.load_template(".dfw")
             
             if ems and max_time != -1.0:
-                col_tras.set_Z(0, max_time)
+                col_tras.SetZ(0, max_time)
             
             fw_dynamic = self._rastr.FWDynamic()
             
@@ -451,7 +442,7 @@ class RastrOperations:
             
             # Восстанавливаем исходное время
             try:
-                col_tras.set_Z(0, original_time)
+                col_tras.SetZ(0, original_time)
             except Exception as e:
                 logger.warning(f"Не удалось восстановить исходное время Tras: {e}")
             
@@ -514,7 +505,7 @@ class RastrOperations:
         """Поиск шунта КЗ для заданного остаточного напряжения"""
         table = self._rastr.Tables.Item("com_dynamics")
         col_tras = table.Cols.Item("Tras")
-        col_tras.set_Z(0, 1.1)
+        col_tras.SetZ(0, 1.1)
         
         self.load_template(".dfw")
         
@@ -599,29 +590,29 @@ class RastrOperations:
         # Добавление строки для X
         table.AddRow()
         row_idx = table.Size - 1
-        col_id.set_Z(row_idx, table.Size)
-        col_type.set_Z(row_idx, 1)
-        col_formula.set_Z(row_idx, str(x).replace(",", "."))
-        col_obj_class.set_Z(row_idx, "node")
-        col_obj_prop.set_Z(row_idx, "x")
-        col_obj_key.set_Z(row_idx, node)
-        col_runs_count.set_Z(row_idx, 1)
-        col_time_start.set_Z(row_idx, 1)
-        col_dt.set_Z(row_idx, 0.06)
+        col_id.SetZ(row_idx, table.Size)
+        col_type.SetZ(row_idx, 1)
+        col_formula.SetZ(row_idx, str(x).replace(",", "."))
+        col_obj_class.SetZ(row_idx, "node")
+        col_obj_prop.SetZ(row_idx, "x")
+        col_obj_key.SetZ(row_idx, node)
+        col_runs_count.SetZ(row_idx, 1)
+        col_time_start.SetZ(row_idx, 1)
+        col_dt.SetZ(row_idx, 0.06)
         
         # Добавление строки для R (если задано)
         if r != -1.0:
             table.AddRow()
             row_idx = table.Size - 1
-            col_id.set_Z(row_idx, table.Size)
-            col_type.set_Z(row_idx, 1)
-            col_formula.set_Z(row_idx, str(r).replace(",", "."))
-            col_obj_class.set_Z(row_idx, "node")
-            col_obj_prop.set_Z(row_idx, "r")
-            col_obj_key.set_Z(row_idx, node)
-            col_runs_count.set_Z(row_idx, 1)
-            col_time_start.set_Z(row_idx, 1)
-            col_dt.set_Z(row_idx, 0.06)
+            col_id.SetZ(row_idx, table.Size)
+            col_type.SetZ(row_idx, 1)
+            col_formula.SetZ(row_idx, str(r).replace(",", "."))
+            col_obj_class.SetZ(row_idx, "node")
+            col_obj_prop.SetZ(row_idx, "r")
+            col_obj_key.SetZ(row_idx, node)
+            col_runs_count.SetZ(row_idx, 1)
+            col_time_start.SetZ(row_idx, 1)
+            col_dt.SetZ(row_idx, 0.06)
     
     def get_points_from_exit_file(self, table_name: str, col_name: str, selection: str) -> List[Point]:
         """Получение точек из выходного файла для построения графика"""
