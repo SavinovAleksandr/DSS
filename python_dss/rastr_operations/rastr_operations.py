@@ -352,30 +352,103 @@ class RastrOperations:
     
     def run_ut(self) -> float:
         """Запуск утяжеления и получение суммы коэффициентов"""
-        table_vetv = self._rastr.Tables.Item("vetv")
-        table_ut = self._rastr.Tables.Item("ut_common")
-        col_sum_kfc = table_ut.Cols.Item("sum_kfc")
+        from utils.logger import logger
+        
+        logger.info("run_ut: Начало выполнения утяжеления")
+        try:
+            logger.info("run_ut: Получение таблиц vetv и ut_common")
+            table_vetv = self._rastr.Tables.Item("vetv")
+            table_ut = self._rastr.Tables.Item("ut_common")
+            col_sum_kfc = table_ut.Cols.Item("sum_kfc")
+            logger.info("run_ut: Таблицы получены успешно")
+        except Exception as e:
+            logger.error(f"run_ut: Ошибка при получении таблиц: {e}")
+            raise
         
         # step_ut("i") - инициализация
         # step_ut("z") - шаг утяжеления
         # AST_OK = 0
+        logger.info("run_ut: Начало инициализации (step_ut('i'))")
+        init_iteration = 0
+        max_init_iterations = 1000  # Максимум итераций инициализации
+        prev_result = None
+        stagnation_count = 0
+        
         while self._rastr.step_ut("i") == 0:
-            pass
+            init_iteration += 1
+            if init_iteration >= max_init_iterations:
+                logger.warning(f"run_ut: Достигнуто максимальное количество итераций инициализации ({max_init_iterations}), прерываем цикл")
+                break
+            
+            # Проверка на застой (если результат не меняется)
+            current_result = self._rastr.step_ut("i")
+            if current_result == prev_result and init_iteration > 10:
+                stagnation_count += 1
+                if stagnation_count >= 10:
+                    logger.warning(f"run_ut: Обнаружен застой в инициализации (итерация {init_iteration}), прерываем цикл")
+                    break
+            else:
+                stagnation_count = 0
+            
+            prev_result = current_result
+            
+            if init_iteration % 100 == 0:
+                logger.debug(f"run_ut: Инициализация, итерация {init_iteration}")
+        
+        logger.info(f"run_ut: Инициализация завершена за {init_iteration} итераций")
+        
+        logger.info("run_ut: Начало шага утяжеления (step_ut('z'))")
+        step_iteration = 0
+        max_step_iterations = 1000  # Максимум итераций шага
+        prev_step_result = None
+        step_stagnation_count = 0
         
         while self._rastr.step_ut("z") == 0:
-            pass
+            step_iteration += 1
+            if step_iteration >= max_step_iterations:
+                logger.warning(f"run_ut: Достигнуто максимальное количество итераций шага ({max_step_iterations}), прерываем цикл")
+                break
+            
+            # Проверка на застой
+            current_step_result = self._rastr.step_ut("z")
+            if current_step_result == prev_step_result and step_iteration > 10:
+                step_stagnation_count += 1
+                if step_stagnation_count >= 10:
+                    logger.warning(f"run_ut: Обнаружен застой в шаге утяжеления (итерация {step_iteration}), прерываем цикл")
+                    break
+            else:
+                step_stagnation_count = 0
+            
+            prev_step_result = current_step_result
+            
+            if step_iteration % 100 == 0:
+                logger.debug(f"run_ut: Шаг утяжеления, итерация {step_iteration}")
         
+        logger.info(f"run_ut: Шаг утяжеления завершен за {step_iteration} итераций")
+        
+        logger.info("run_ut: Получение значения sum_kfc")
         # Используем Z(index) - свойство с индексом (как в рабочей версии)
         try:
-            return col_sum_kfc.Z(0)
-        except (AttributeError, TypeError):
+            result = col_sum_kfc.Z(0)
+            logger.info(f"run_ut: sum_kfc получен через Z(0): {result}")
+            return result
+        except (AttributeError, TypeError) as e:
+            logger.debug(f"run_ut: Z(0) не сработал, пробуем [0]: {e}")
             try:
-                return col_sum_kfc[0]
-            except (AttributeError, TypeError, IndexError):
+                result = col_sum_kfc[0]
+                logger.info(f"run_ut: sum_kfc получен через [0]: {result}")
+                return result
+            except (AttributeError, TypeError, IndexError) as e2:
+                logger.debug(f"run_ut: [0] не сработал, пробуем GetZ(0): {e2}")
                 try:
-                    return col_sum_kfc.GetZ(0)
-                except AttributeError:
-                    return col_sum_kfc.get_Z(0)
+                    result = col_sum_kfc.GetZ(0)
+                    logger.info(f"run_ut: sum_kfc получен через GetZ(0): {result}")
+                    return result
+                except AttributeError as e3:
+                    logger.debug(f"run_ut: GetZ(0) не сработал, пробуем get_Z(0): {e3}")
+                    result = col_sum_kfc.get_Z(0)
+                    logger.info(f"run_ut: sum_kfc получен через get_Z(0): {result}")
+                    return result
     
     def step(self, step_value: float = 1.0, init: bool = True) -> float:
         """Выполнение шага утяжеления"""
