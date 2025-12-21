@@ -50,10 +50,20 @@ class RastrOperations:
         
         if not template_dir.exists():
             logger.warning(f"Директория шаблонов не найдена: {template_dir}")
-            # Пробуем стандартный путь
-            template_dir = Path.home() / "RastrWIN3" / "SHABLON"
-            if not template_dir.exists():
-                logger.warning(f"Стандартная директория шаблонов не найдена: {template_dir}")
+            # Пробуем стандартные пути (в разных версиях RASTR может быть разное расположение)
+            possible_paths = [
+                Path.home() / "Documents" / "RastrWin3" / "SHABLON",  # Современные версии RASTR
+                Path.home() / "RastrWIN3" / "SHABLON",  # Старые версии
+                Path.home() / "RastrWin3" / "SHABLON",  # Альтернативный вариант
+            ]
+            
+            for possible_path in possible_paths:
+                if possible_path.exists():
+                    logger.info(f"Найдена директория шаблонов: {possible_path}")
+                    template_dir = possible_path
+                    break
+            else:
+                logger.warning(f"Директория шаблонов не найдена ни в одном из стандартных мест")
                 return None
         
         # Ищем шаблон с нужным расширением
