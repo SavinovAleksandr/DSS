@@ -98,7 +98,7 @@ class Config:
                 "cache_ttl": 3600  # 1 час
             },
             "license": {
-                "disable_check": False  # True для отключения проверки лицензии (только для тестирования!)
+                "disable_check": True  # True для отключения проверки лицензии (только для тестирования!)
             }
         }
     

@@ -528,6 +528,8 @@ class ModernMainWindow:
                 ))
                 self.root.after(0, lambda: self.status_bar.configure(text="Расчет завершен успешно"))
             except Exception as e:
+                # Гарантируем сброс флага is_active при ошибке
+                self.data_info.is_active = False
                 user_message, _ = error_handler.handle_error(
                     e,
                     context="Расчет: Определение шунта КЗ",
@@ -537,6 +539,8 @@ class ModernMainWindow:
                 self.root.after(0, lambda: messagebox.showerror("Ошибка", user_message))
                 self.root.after(0, lambda: self.status_bar.configure(text="Ошибка при выполнении расчета"))
             finally:
+                # Дополнительная гарантия сброса флага
+                self.data_info.is_active = False
                 self.root.after(0, self._update_ui)
         
         thread = threading.Thread(target=run_calc, daemon=True)
@@ -572,6 +576,8 @@ class ModernMainWindow:
                 ))
                 self.root.after(0, lambda: self.status_bar.configure(text="Расчет завершен успешно"))
             except Exception as e:
+                # Гарантируем сброс флага is_active при ошибке
+                self.data_info.is_active = False
                 user_message, _ = error_handler.handle_error(
                     e,
                     context="Расчет: Определение предельного времени КЗ",
@@ -581,6 +587,8 @@ class ModernMainWindow:
                 self.root.after(0, lambda: messagebox.showerror("Ошибка", user_message))
                 self.root.after(0, lambda: self.status_bar.configure(text="Ошибка при выполнении расчета"))
             finally:
+                # Дополнительная гарантия сброса флага
+                self.data_info.is_active = False
                 self.root.after(0, self._update_ui)
         
         thread = threading.Thread(target=run_calc, daemon=True)
@@ -616,6 +624,8 @@ class ModernMainWindow:
                 ))
                 self.root.after(0, lambda: self.status_bar.configure(text="Расчет завершен успешно"))
             except Exception as e:
+                # Гарантируем сброс флага is_active при ошибке
+                self.data_info.is_active = False
                 user_message, _ = error_handler.handle_error(
                     e,
                     context="Расчет: Пакетный расчет ДУ",
@@ -625,6 +635,8 @@ class ModernMainWindow:
                 self.root.after(0, lambda: messagebox.showerror("Ошибка", user_message))
                 self.root.after(0, lambda: self.status_bar.configure(text="Ошибка при выполнении расчета"))
             finally:
+                # Дополнительная гарантия сброса флага
+                self.data_info.is_active = False
                 self.root.after(0, self._update_ui)
         
         thread = threading.Thread(target=run_calc, daemon=True)
@@ -660,6 +672,8 @@ class ModernMainWindow:
                 ))
                 self.root.after(0, lambda: self.status_bar.configure(text="Расчет завершен успешно"))
             except Exception as e:
+                # Гарантируем сброс флага is_active при ошибке
+                self.data_info.is_active = False
                 user_message, _ = error_handler.handle_error(
                     e,
                     context="Расчет: Определение МДП ДУ",
@@ -669,6 +683,8 @@ class ModernMainWindow:
                 self.root.after(0, lambda: messagebox.showerror("Ошибка", user_message))
                 self.root.after(0, lambda: self.status_bar.configure(text="Ошибка при выполнении расчета"))
             finally:
+                # Дополнительная гарантия сброса флага
+                self.data_info.is_active = False
                 self.root.after(0, self._update_ui)
         
         thread = threading.Thread(target=run_calc, daemon=True)
@@ -704,6 +720,8 @@ class ModernMainWindow:
                 ))
                 self.root.after(0, lambda: self.status_bar.configure(text="Расчет завершен успешно"))
             except Exception as e:
+                # Гарантируем сброс флага is_active при ошибке
+                self.data_info.is_active = False
                 user_message, _ = error_handler.handle_error(
                     e,
                     context="Расчет: Определение остаточного напряжения при КЗ",
@@ -713,6 +731,8 @@ class ModernMainWindow:
                 self.root.after(0, lambda: messagebox.showerror("Ошибка", user_message))
                 self.root.after(0, lambda: self.status_bar.configure(text="Ошибка при выполнении расчета"))
             finally:
+                # Дополнительная гарантия сброса флага
+                self.data_info.is_active = False
                 self.root.after(0, self._update_ui)
         
         thread = threading.Thread(target=run_calc, daemon=True)

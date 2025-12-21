@@ -13,7 +13,8 @@ from utils.config import config
 from utils.exceptions import (
     InitialDataException,
     UserLicenseException,
-    UncorrectFileException
+    UncorrectFileException,
+    RastrUnavailableException
 )
 
 
@@ -25,6 +26,7 @@ class ErrorHandler:
         InitialDataException: "Не все необходимые исходные данные загружены. Пожалуйста, проверьте наличие всех требуемых файлов.",
         UserLicenseException: "Проблема с лицензией. Обратитесь к администратору.",
         UncorrectFileException: "Некорректный формат файла. Проверьте, что файл не поврежден и соответствует требуемому формату.",
+        RastrUnavailableException: "RASTR недоступен на данной платформе. Для выполнения расчетов требуется Windows с установленным RASTR (ПК RUSTab).\n\nПриложение может работать на Linux/macOS для просмотра интерфейса и работы с данными, но расчеты будут недоступны.",
         FileNotFoundError: "Файл не найден. Проверьте путь к файлу.",
         PermissionError: "Нет доступа к файлу. Проверьте права доступа.",
         ValueError: "Некорректное значение параметра. Проверьте введенные данные.",

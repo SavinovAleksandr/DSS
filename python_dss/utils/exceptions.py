@@ -17,3 +17,8 @@ class UncorrectFileException(Exception):
     """Исключение при некорректном формате файла"""
     pass
 
+
+class RastrUnavailableException(Exception):
+    """Исключение при недоступности RASTR на данной платформе"""
+    pass
+

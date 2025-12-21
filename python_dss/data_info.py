@@ -15,10 +15,16 @@ from calculations import (
     ShuntKZCalc, MaxKZTimeCalc, DynStabilityCalc, MdpStabilityCalc, UostStabilityCalc
 )
 from excel_operations import ExcelOperations
-from utils.exceptions import UncorrectFileException
+from utils.exceptions import UncorrectFileException, RastrUnavailableException
 from utils.config import config
 from utils.file_type_detector import FileTypeDetector
-from rastr_operations import RastrOperations
+
+# Условный импорт RastrOperations для кроссплатформенности
+try:
+    from rastr_operations import RastrOperations, RASTR_AVAILABLE
+except ImportError:
+    RastrOperations = None
+    RASTR_AVAILABLE = False
 
 
 class DataInfo:
@@ -127,6 +133,12 @@ class DataInfo:
         self.sechen.name = file_path
         self.sch_inf.clear()
         
+        if not RASTR_AVAILABLE or RastrOperations is None:
+            raise RastrUnavailableException(
+                "RASTR недоступен на данной платформе. "
+                "Для работы с файлами сечений требуется Windows с установленным RASTR."
+            )
+        
         rastr = RastrOperations()
         rastr.load(file_path)
         sections = rastr.selection("sechen")
@@ -145,6 +157,12 @@ class DataInfo:
         self.vrn_inf.clear()
         self.vrn_inf.append(VrnInfo(id=-1, name="Нормальная схема", num=0, deactive=False))
         
+        if not RASTR_AVAILABLE or RastrOperations is None:
+            raise RastrUnavailableException(
+                "RASTR недоступен на данной платформе. "
+                "Для работы с файлами ремонтных схем требуется Windows с установленным RASTR."
+            )
+        
         rastr = RastrOperations()
         rastr.load(file_path)
         variants = rastr.selection("var_mer")
@@ -161,6 +179,12 @@ class DataInfo:
         """Обработка файла графического вывода"""
         self.grf.name = file_path
         self.kpr_inf.clear()
+        
+        if not RASTR_AVAILABLE or RastrOperations is None:
+            raise RastrUnavailableException(
+                "RASTR недоступен на данной платформе. "
+                "Для работы с файлами графического вывода требуется Windows с установленным RASTR."
+            )
         
         rastr = RastrOperations()
         rastr.load(file_path)
@@ -214,6 +238,12 @@ class DataInfo:
         self.use_lpn = (ext == '.lpn')
         
         if self.use_lpn:
+            if not RASTR_AVAILABLE or RastrOperations is None:
+                raise RastrUnavailableException(
+                    "RASTR недоступен на данной платформе. "
+                    "Для работы с файлами ПА (.lpn) требуется Windows с установленным RASTR."
+                )
+            
             rastr = RastrOperations()
             rastr.load(file_path)
             lapnu_ids = rastr.selection("LAPNU", "sta = 0")
@@ -233,19 +263,19 @@ class DataInfo:
             return
         
         self.is_active = True
-        self._clear_all_results()
-        
-        calc = ShuntKZCalc(
-            progress_callback,
-            self.rgms_info, self.vrn_inf, self.rems.name,
-            self.shunt_kz_inf, self.use_sel_nodes, self.use_type_val_u,
-            self.calc_one_phase, self.calc_two_phase
-        )
-        
-        self.max_progress = calc.max
-        self.progress = 0
-        
         try:
+            self._clear_all_results()
+            
+            calc = ShuntKZCalc(
+                progress_callback,
+                self.rgms_info, self.vrn_inf, self.rems.name,
+                self.shunt_kz_inf, self.use_sel_nodes, self.use_type_val_u,
+                self.calc_one_phase, self.calc_two_phase
+            )
+            
+            self.max_progress = calc.max
+            self.progress = 0
+            
             self.shunt_results = calc.calc()
             self._save_results_to_excel(calc.root)
             return calc.root
@@ -260,18 +290,18 @@ class DataInfo:
             return
         
         self.is_active = True
-        self._clear_all_results()
-        
-        calc = MaxKZTimeCalc(
-            progress_callback,
-            self.rgms_info, self.scns_info, self.vrn_inf,
-            self.rems.name, self.crt_time_precision, self.crt_time_max
-        )
-        
-        self.max_progress = calc.max
-        self.progress = 0
-        
         try:
+            self._clear_all_results()
+            
+            calc = MaxKZTimeCalc(
+                progress_callback,
+                self.rgms_info, self.scns_info, self.vrn_inf,
+                self.rems.name, self.crt_time_precision, self.crt_time_max
+            )
+            
+            self.max_progress = calc.max
+            self.progress = 0
+            
             self.crt_time_results = calc.calc()
             self._save_results_to_excel(calc.root)
             return calc.root
@@ -286,20 +316,20 @@ class DataInfo:
             return
         
         self.is_active = True
-        self._clear_all_results()
-        
-        calc = DynStabilityCalc(
-            progress_callback,
-            self.rgms_info, self.scns_info, self.vrn_inf,
-            self.rems.name, self.kpr_inf, self.sechen.name,
-            self.lapnu.name, self.save_grf, self.lpns,
-            self.dyn_no_pa, self.dyn_with_pa, self.use_lpn
-        )
-        
-        self.max_progress = calc.max
-        self.progress = 0
-        
         try:
+            self._clear_all_results()
+            
+            calc = DynStabilityCalc(
+                progress_callback,
+                self.rgms_info, self.scns_info, self.vrn_inf,
+                self.rems.name, self.kpr_inf, self.sechen.name,
+                self.lapnu.name, self.save_grf, self.lpns,
+                self.dyn_no_pa, self.dyn_with_pa, self.use_lpn
+            )
+            
+            self.max_progress = calc.max
+            self.progress = 0
+            
             self.dyn_results = calc.calc()
             self._save_results_to_excel(calc.root)
             return calc.root
@@ -314,21 +344,21 @@ class DataInfo:
             return
         
         self.is_active = True
-        self._clear_all_results()
-        
-        calc = MdpStabilityCalc(
-            progress_callback,
-            self.rgms_info, self.scns_info, self.vrn_inf,
-            self.rems.name, self.vir.name, self.sechen.name,
-            self.lapnu.name, self.sch_inf, self.kpr_inf,
-            self.lpns, self.selected_sch, self.dyn_no_pa,
-            self.dyn_with_pa, self.use_lpn
-        )
-        
-        self.max_progress = calc.max
-        self.progress = 0
-        
         try:
+            self._clear_all_results()
+            
+            calc = MdpStabilityCalc(
+                progress_callback,
+                self.rgms_info, self.scns_info, self.vrn_inf,
+                self.rems.name, self.vir.name, self.sechen.name,
+                self.lapnu.name, self.sch_inf, self.kpr_inf,
+                self.lpns, self.selected_sch, self.dyn_no_pa,
+                self.dyn_with_pa, self.use_lpn
+            )
+            
+            self.max_progress = calc.max
+            self.progress = 0
+            
             self.mdp_results = calc.calc()
             self._save_results_to_excel(calc.root)
             return calc.root
@@ -343,18 +373,18 @@ class DataInfo:
             return
         
         self.is_active = True
-        self._clear_all_results()
-        
-        calc = UostStabilityCalc(
-            progress_callback,
-            self.rgms_info, self.scns_info, self.vrn_inf,
-            self.rems.name, self.kpr_inf
-        )
-        
-        self.max_progress = calc.max
-        self.progress = 0
-        
         try:
+            self._clear_all_results()
+            
+            calc = UostStabilityCalc(
+                progress_callback,
+                self.rgms_info, self.scns_info, self.vrn_inf,
+                self.rems.name, self.kpr_inf
+            )
+            
+            self.max_progress = calc.max
+            self.progress = 0
+            
             self.uost_results = calc.calc()
             self._save_results_to_excel(calc.root)
             return calc.root

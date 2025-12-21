@@ -37,11 +37,21 @@ def main():
         use_modern_ui = use_modern_ui == 'true'
         
         if use_modern_ui and MODERN_UI_AVAILABLE:
+            app = None
+            modern_window = None
             try:
                 logger.info("Использование современного UI (CustomTkinter)")
-                app = ModernMainWindow()
+                modern_window = ModernMainWindow()
+                app = modern_window
             except Exception as e:
                 logger.warning(f"Не удалось загрузить современный UI: {e}, используется классический")
+                # Убеждаемся, что частично созданное окно уничтожено
+                if modern_window is not None and modern_window.root is not None:
+                    try:
+                        modern_window.root.destroy()
+                        modern_window.root.update()  # Принудительное обновление для уничтожения
+                    except:
+                        pass
                 app = MainWindow()
         else:
             logger.info("Использование классического UI (tkinter)")
