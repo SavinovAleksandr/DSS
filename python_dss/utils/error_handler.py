@@ -100,33 +100,37 @@ class ErrorHandler:
     def _get_user_message(self, error: Exception) -> str:
         """Получить понятное сообщение об ошибке для пользователя"""
         error_type = type(error)
+        base_message: str
         
         # Специальная обработка FileNotFoundError для шаблонов RASTR
         if isinstance(error, FileNotFoundError):
             error_str = str(error)
             # Проверяем, связана ли ошибка с шаблоном RASTR
-            if "шаблон" in error_str.lower() or "template" in error_str.lower() or ".sch" in error_str or ".rst" in error_str or ".dfw" in error_str:
+            if ("шаблон" in error_str.lower() or "template" in error_str.lower() or
+                ".sch" in error_str or ".rst" in error_str or ".dfw" in error_str):
                 template_dir = config.get_path("paths.rastr_template_dir")
-                base_message = f"Файл не найден. Проверьте путь к файлу.\n\nЕсли ошибка связана с шаблоном RASTR, проверьте:\n1. Существует ли директория шаблонов: {template_dir}\n2. Есть ли в ней файл с нужным расширением (.rst, .sch, .dfw и т.д.)\n3. Правильно ли настроен путь в конфигурации (paths.rastr_template_dir)"
+                base_message = (
+                    f"Файл не найден. Проверьте путь к файлу.\n\n"
+                    f"Если ошибка связана с шаблоном RASTR, проверьте:\n"
+                    f"1. Существует ли директория шаблонов: {template_dir}\n"
+                    f"2. Есть ли в ней файл с нужным расширением "
+                    f"(.rst, .sch, .dfw и т.д.)\n"
+                    f"3. Правильно ли настроен путь в конфигурации "
+                    f"(paths.rastr_template_dir)"
+                )
             else:
                 base_message = "Файл не найден. Проверьте путь к файлу."
         # Проверка точного совпадения типа
         elif error_type in self.ERROR_MESSAGES:
-            base_message = self.ERROR_MESSAGES[error_type]
-            if base_message is None:
-                base_message = f"Произошла ошибка: {str(error)}"
+            msg = self.ERROR_MESSAGES[error_type]
+            base_message = msg if msg is not None else f"Произошла ошибка: {str(error)}"
         else:
             # Проверка базовых классов
-            base_message = None
+            base_message = f"Произошла ошибка: {str(error)}"
             for err_class, message in self.ERROR_MESSAGES.items():
                 if isinstance(error, err_class):
-                    base_message = message
-                    if base_message is None:
-                        base_message = f"Произошла ошибка: {str(error)}"
+                    base_message = message if message is not None else base_message
                     break
-            
-            if not base_message:
-                base_message = f"Произошла ошибка: {str(error)}"
         
         # Добавление деталей, если они есть
         if str(error) and str(error) != str(error_type):
