@@ -212,12 +212,18 @@ class RastrOperations:
                 table.SetSel(selection_or_index)
                 idx = table.FindNextSel(-1)
                 if idx != -1:
-                    # Используем Invoke для вызова get_Z через COM
+                    # Пытаемся вызвать get_Z разными способами
                     try:
                         return col.get_Z(idx)
                     except AttributeError:
-                        # Если get_Z не найден, используем Invoke
-                        return col._oleobj_.Invoke(0, idx)  # DispID для get_Z обычно 0
+                        try:
+                            # Пробуем через __call__
+                            return col(idx)
+                        except:
+                            # Используем прямой доступ через COM с правильным DispID
+                            # get_Z обычно имеет DispID для свойства по умолчанию
+                            import pythoncom
+                            return col._oleobj_.Invoke(pythoncom.DISPID_PROPERTYPUT, idx)
                 return None
             else:
                 # Проверяем, что индекс валиден
@@ -226,8 +232,13 @@ class RastrOperations:
                 try:
                     return col.get_Z(selection_or_index)
                 except AttributeError:
-                    # Если get_Z не найден, используем Invoke
-                    return col._oleobj_.Invoke(0, selection_or_index)
+                    try:
+                        # Пробуем через __call__
+                        return col(selection_or_index)
+                    except:
+                        # Используем прямой доступ через COM
+                        import pythoncom
+                        return col._oleobj_.Invoke(pythoncom.DISPID_PROPERTYPUT, selection_or_index)
         except Exception as e:
             from utils.logger import logger
             logger.error(f"Ошибка при получении значения из {table_name}.{col_name} (индекс/выборка: {selection_or_index}): {e}")
@@ -248,9 +259,13 @@ class RastrOperations:
             try:
                 col.set_Z(index, value)
             except AttributeError:
-                # Если set_Z не найден, используем Invoke через COM
-                # DispID для set_Z обычно 1 (put)
-                col._oleobj_.Invoke(1, index, value)
+                try:
+                    # Пробуем через прямое присваивание с индексом
+                    col[index] = value
+                except:
+                    # Используем Invoke через COM с правильным DispID
+                    import pythoncom
+                    col._oleobj_.Invoke(pythoncom.DISPID_PROPERTYPUT, index, value)
             return True
         except Exception as e:
             from utils.logger import logger
