@@ -751,9 +751,16 @@ class ModernMainWindow:
         
         def run_calc():
             try:
-                logger.info("Запуск расчета: Определение МДП ДУ")
+                logger.info("=" * 80)
+                logger.info("UI: Запуск расчета: Определение МДП ДУ")
+                logger.info("=" * 80)
+                logger.info(f"UI: is_active перед вызовом: {self.data_info.is_active}")
+                logger.info(f"UI: progress_callback установлен: {self._progress_callback is not None}")
+                
                 self.root.after(0, lambda: self.status_bar.configure(text="Выполняется расчет: Определение МДП ДУ..."))
+                logger.info("UI: Вызов data_info.calc_mdp_stability()")
                 result_path = self.data_info.calc_mdp_stability(self._progress_callback)
+                logger.info(f"UI: calc_mdp_stability вернул: {result_path}")
                 logger.info(f"Расчет завершен успешно. Результаты: {result_path}")
                 logger.audit("CALC_SUCCESS", f"Расчет завершен: Определение МДП ДУ | Результаты: {result_path}")
                 self.root.after(0, lambda: messagebox.showinfo(

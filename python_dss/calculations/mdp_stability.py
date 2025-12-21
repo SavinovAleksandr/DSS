@@ -93,15 +93,39 @@ class MdpStabilityCalc:
     
     def calc(self) -> List[MdpResults]:
         """Выполнение расчета"""
+        from utils.logger import logger
+        
+        logger.info("=" * 80)
+        logger.info("НАЧАЛО МЕТОДА calc() В MdpStabilityCalc")
+        logger.info("=" * 80)
+        logger.info(f"Количество режимов: {len(self._rgms)}")
+        logger.info(f"Количество вариантов: {len(self._vrns)}")
+        logger.info(f"Количество сценариев: {len(self._scns)}")
+        logger.info(f"Максимальное количество шагов: {self.max}")
+        
         progress = 0
         results = []
         tmp_file = self._root / "mdp_calc_tmp.rst"
+        logger.info(f"Временный файл: {tmp_file}")
         
         # Начальный прогресс
+        logger.info(f"Вызов progress_callback с progress={progress}")
         if self._progress_callback:
-            self._progress_callback(progress)
+            try:
+                self._progress_callback(progress)
+                logger.info("progress_callback выполнен успешно")
+            except Exception as e:
+                logger.error(f"Ошибка в progress_callback: {e}")
+        else:
+            logger.warning("progress_callback не установлен!")
         
-        for rgm in self._rgms:
+        logger.info("Начало цикла по режимам (rgms)")
+        for rgm_idx, rgm in enumerate(self._rgms):
+            logger.info(f"[РЕЖИМ {rgm_idx + 1}/{len(self._rgms)}] Обработка режима: {Path(rgm.name).stem}")
+            mdp_shems_list = []
+            
+            logger.info(f"[РЕЖИМ {rgm_idx + 1}] Начало цикла по вариантам (vrns)")
+            for vrn_idx, vrn in enumerate(self._vrns):
             mdp_shems_list = []
             
             for vrn in self._vrns:
@@ -116,44 +140,91 @@ class MdpStabilityCalc:
                 )
                 events_list = []
                 
-                for scn in self._scns:
-                    from utils.logger import logger
-                    logger.debug(f"Обработка сценария: {Path(scn.name).stem} для схемы {vrn.name}")
+                logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}/{len(self._vrns)}] Обработка варианта: {vrn.name}")
+                logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}] Начало цикла по сценариям (scns)")
+                for scn_idx, scn in enumerate(self._scns):
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}/{len(self._scns)}] Обработка сценария: {Path(scn.name).stem}")
                     
+                    logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Создание объекта RastrOperations")
                     rastr = RastrOperations()
+                    logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] RastrOperations создан")
                     
                     # Инициализация схемы (только один раз)
+                    logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Проверка is_ready: {mdp_shem.is_ready}")
                     if not mdp_shem.is_ready:
-                        logger.debug(f"Инициализация схемы {vrn.name} для режима {Path(rgm.name).stem}")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] ИНИЦИАЛИЗАЦИЯ СХЕМЫ: {vrn.name} для режима {Path(rgm.name).stem}")
                         # Обновление прогресса при начале инициализации схемы
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Вызов progress_callback (инициализация)")
                         if self._progress_callback:
-                            self._progress_callback(progress)
+                            try:
+                                self._progress_callback(progress)
+                            except Exception as e:
+                                logger.error(f"Ошибка в progress_callback: {e}")
                         
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка режима: {rgm.name}")
                         rastr.load(rgm.name)
-                        rastr.dyn_settings()
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Режим загружен")
                         
-                        mdp_shem.is_stable = (rastr.rgm() if vrn.id == -1 else rastr.apply_variant(vrn.num, self._rems_path))
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Настройка параметров динамики")
+                        rastr.dyn_settings()
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Параметры динамики настроены")
+                        
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Применение варианта: vrn.id={vrn.id}, vrn.num={vrn.num}")
+                        if vrn.id == -1:
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Вызов rgm() (базовый вариант)")
+                            mdp_shem.is_stable = rastr.rgm()
+                        else:
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Вызов apply_variant({vrn.num}, {self._rems_path})")
+                            mdp_shem.is_stable = rastr.apply_variant(vrn.num, self._rems_path)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Результат применения варианта (is_stable): {mdp_shem.is_stable}")
+                        
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Сохранение во временный файл: {tmp_file}")
                         rastr.save(str(tmp_file))
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Файл сохранен")
                         mdp_shem.is_ready = True
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] is_ready установлен в True")
                         
                         if mdp_shem.is_stable:
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Схема устойчива, продолжаем инициализацию")
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка временного файла: {tmp_file}")
                             rastr.load(str(tmp_file))
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка файла сечений: {self._sechen_path}")
                             rastr.load(self._sechen_path)
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка файла VIR: {self._vir_path}")
                             rastr.load(self._vir_path)
                             
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Получение p_start для сечения {self._selected_sch}")
                             mdp_shem.p_start = rastr.get_val("sechen", "psech", self._selected_sch)
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] p_start = {mdp_shem.p_start}")
+                            
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Вызов run_ut() для определения max_step")
                             mdp_shem.max_step = rastr.run_ut()
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] max_step = {mdp_shem.max_step}")
+                            
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Получение p_pred для сечения {self._selected_sch}")
                             mdp_shem.p_pred = rastr.get_val("sechen", "psech", self._selected_sch)
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] p_pred = {mdp_shem.p_pred}")
                             
                             # Калибровка шага
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] НАЧАЛО КАЛИБРОВКИ ШАГА")
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка временного файла для калибровки")
                             rastr.load(str(tmp_file))
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка VIR для калибровки")
                             rastr.load(self._vir_path)
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Вызов step({mdp_shem.max_step * 0.9})")
                             mdp_shem.max_step = rastr.step(mdp_shem.max_step * 0.9)
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] max_step после первого step = {mdp_shem.max_step}")
                             
                             p_current = rastr.get_val("sechen", "psech", self._selected_sch)
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] p_current после первого step = {p_current}")
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Целевое значение: p_pred * 0.9 = {mdp_shem.p_pred * 0.9}")
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Разница: {abs(p_current - mdp_shem.p_pred * 0.9)}")
+                            
                             iteration = 0
                             max_calibration_iterations = 50  # Максимум итераций калибровки
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Начало цикла калибровки (макс. {max_calibration_iterations} итераций)")
                             while abs(p_current - mdp_shem.p_pred * 0.9) > 2.0 and iteration < max_calibration_iterations:
+                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}] Калибровка, итерация {iteration + 1}: p_current={p_current:.2f}, цель={mdp_shem.p_pred * 0.9:.2f}, разница={abs(p_current - mdp_shem.p_pred * 0.9):.2f}")
                                 rastr.load(str(tmp_file))
                                 rastr.load(self._vir_path)
                                 mdp_shem.max_step = rastr.step(mdp_shem.max_step * mdp_shem.p_pred * 0.9 / p_current)
@@ -170,8 +241,10 @@ class MdpStabilityCalc:
                             rastr.save(str(tmp_file))
                     
                     if not mdp_shem.is_stable:
+                        logger.warning(f"[СЦЕНАРИЙ {scn_idx + 1}] Схема нестабильна, пропуск дальнейших расчетов")
                         break
                     
+                    logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Схема устойчива, продолжаем расчеты")
                     no_pa_sechen = []
                     no_pa_kpr = []
                     with_pa_sechen = []
@@ -180,22 +253,32 @@ class MdpStabilityCalc:
                     with_pa_mdp = -1.0
                     
                     precision = max(2.0, min(10.0, math.floor(mdp_shem.p_pred * 0.02)))
+                    logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Точность расчета: {precision}")
                     
                     # Расчет без ПА
                     if self._no_pa:
-                        logger.debug(f"Начало расчета МДП без ПА для сценария {Path(scn.name).stem}")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] ========== НАЧАЛО РАСЧЕТА БЕЗ ПА ==========")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Начало расчета МДП без ПА для сценария {Path(scn.name).stem}")
                         # Обновление прогресса при начале расчета без ПА
                         if self._progress_callback:
                             self._progress_callback(progress)
                         
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка файлов для расчета")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка временного файла")
                         rastr.load(str(tmp_file))
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка файла сечений")
                         rastr.load(self._sechen_path)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка файла VIR")
                         rastr.load(self._vir_path)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка сценария: {scn.name}")
                         rastr.load(scn.name)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка шаблона .dfw")
                         rastr.load_template(".dfw")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Все файлы загружены")
                         
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Вызов run_dynamic(ems=True)")
                         dyn_result = rastr.run_dynamic(ems=True)
-                        logger.debug(f"Результат динамики без ПА: успех={dyn_result.is_success}, устойчивость={dyn_result.is_stable}")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Результат динамики: успех={dyn_result.is_success}, устойчивость={dyn_result.is_stable}")
                         
                         if dyn_result.is_success and not dyn_result.is_stable:
                             p_current = rastr.get_val("sechen", "psech", self._selected_sch)

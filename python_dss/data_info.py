@@ -355,13 +355,39 @@ class DataInfo:
     
     def calc_mdp_stability(self, progress_callback: Optional[Callable[[int], None]] = None):
         """Расчет МДП ДУ"""
+        logger.info("=" * 80)
+        logger.info("НАЧАЛО РАСЧЕТА МДП ДУ")
+        logger.info("=" * 80)
+        
         if self.is_active:
+            logger.warning("Расчет уже выполняется, пропуск")
             return
         
+        logger.info(f"is_active до установки: {self.is_active}")
         self.is_active = True
+        logger.info(f"is_active после установки: {self.is_active}")
+        
         try:
+            logger.info("Очистка предыдущих результатов")
             self._clear_all_results()
             
+            logger.info("Проверка исходных данных:")
+            logger.info(f"  - Режимов (rgms): {len(self.rgms_info)}")
+            logger.info(f"  - Сценариев (scns): {len(self.scns_info)}")
+            logger.info(f"  - Вариантов (vrns): {len(self.vrn_inf)}")
+            logger.info(f"  - Сечений (schs): {len(self.sch_inf)}")
+            logger.info(f"  - Контролируемых величин (kprs): {len(self.kpr_inf)}")
+            logger.info(f"  - REMS путь: {self.rems.name}")
+            logger.info(f"  - VIR путь: {self.vir.name}")
+            logger.info(f"  - Сечения путь: {self.sechen.name}")
+            logger.info(f"  - ПА путь: {self.lapnu.name}")
+            logger.info(f"  - Выбранное сечение: {self.selected_sch}")
+            logger.info(f"  - Без ПА: {self.dyn_no_pa}")
+            logger.info(f"  - С ПА: {self.dyn_with_pa}")
+            logger.info(f"  - Использовать LPN: {self.use_lpn}")
+            logger.info(f"  - LPNs: {self.lpns}")
+            
+            logger.info("Создание объекта MdpStabilityCalc")
             calc = MdpStabilityCalc(
                 progress_callback,
                 self.rgms_info, self.scns_info, self.vrn_inf,
@@ -373,14 +399,30 @@ class DataInfo:
             
             self.max_progress = calc.max
             self.progress = 0
+            logger.info(f"Максимальное количество шагов: {self.max_progress}")
+            logger.info(f"Корневая директория результатов: {calc.root}")
             
+            logger.info("Запуск расчета calc.calc()")
             self.mdp_results = calc.calc()
+            logger.info(f"Расчет завершен. Получено результатов: {len(self.mdp_results)}")
+            
+            logger.info("Сохранение результатов в Excel")
             self._save_results_to_excel(calc.root)
+            logger.info(f"Результаты сохранены в: {calc.root}")
+            
             return calc.root
+        except Exception as e:
+            logger.exception(f"ОШИБКА В calc_mdp_stability: {type(e).__name__}: {e}")
+            raise
         finally:
+            logger.info("Сброс флагов в finally блоке")
             self.is_active = False
             self.progress = 0
             self.label = ""
+            logger.info(f"is_active после сброса: {self.is_active}")
+            logger.info("=" * 80)
+            logger.info("КОНЕЦ РАСЧЕТА МДП ДУ")
+            logger.info("=" * 80)
     
     def calc_uost_stability(self, progress_callback: Optional[Callable[[int], None]] = None):
         """Расчет остаточного напряжения при КЗ"""
