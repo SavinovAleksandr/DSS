@@ -160,7 +160,6 @@ class ErrorHandler:
             
             # Проверка доступности для чтения (используем os.access вместо несуществующего is_readable)
             if must_exist:
-                import os
                 if not os.access(file_path, os.R_OK):
                     return False, f"Нет доступа для чтения файла: {file_path}"
             
