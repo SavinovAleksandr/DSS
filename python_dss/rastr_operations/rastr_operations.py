@@ -327,33 +327,50 @@ class RastrOperations:
     
     def run_dynamic(self, ems: bool = False, max_time: float = -1.0) -> DynamicResult:
         """Запуск динамического расчета"""
-        result = DynamicResult()
-        
-        table = self._rastr.Tables.Item("com_dynamics")
-        col_tras = table.Cols.Item("Tras")
-        original_time = col_tras.get_Z(0)
-        
-        self.load_template(".dfw")
-        
-        if ems and max_time != -1.0:
-            col_tras.set_Z(0, max_time)
-        
-        fw_dynamic = self._rastr.FWDynamic()
-        
-        # SYNC_LOSS_NONE = 0
-        if ems:
-            ret_code = fw_dynamic.RunEMSmode()
-        else:
-            ret_code = fw_dynamic.Run()
-        
-        result.is_success = (ret_code == 0)
-        result.is_stable = (fw_dynamic.SyncLossCause == 0)  # SYNC_LOSS_NONE
-        result.result_message = fw_dynamic.ResultMessage if fw_dynamic.ResultMessage else " - "
-        result.time_reached = fw_dynamic.TimeReached
-        
-        col_tras.set_Z(0, original_time)
-        
-        return result
+        try:
+            from utils.logger import logger
+            
+            result = DynamicResult()
+            
+            table = self._rastr.Tables.Item("com_dynamics")
+            
+            # Проверяем, что таблица существует и имеет хотя бы одну строку
+            if table.Size == 0:
+                logger.warning("Таблица com_dynamics пуста, добавляем строку")
+                table.AddRow()
+            
+            col_tras = table.Cols.Item("Tras")
+            original_time = col_tras.get_Z(0)
+            
+            self.load_template(".dfw")
+            
+            if ems and max_time != -1.0:
+                col_tras.set_Z(0, max_time)
+            
+            fw_dynamic = self._rastr.FWDynamic()
+            
+            # SYNC_LOSS_NONE = 0
+            if ems:
+                ret_code = fw_dynamic.RunEMSmode()
+            else:
+                ret_code = fw_dynamic.Run()
+            
+            result.is_success = (ret_code == 0)
+            result.is_stable = (fw_dynamic.SyncLossCause == 0)  # SYNC_LOSS_NONE
+            result.result_message = fw_dynamic.ResultMessage if fw_dynamic.ResultMessage else " - "
+            result.time_reached = fw_dynamic.TimeReached
+            
+            # Восстанавливаем исходное время
+            try:
+                col_tras.set_Z(0, original_time)
+            except Exception as e:
+                logger.warning(f"Не удалось восстановить исходное время Tras: {e}")
+            
+            return result
+        except Exception as e:
+            from utils.logger import logger
+            logger.error(f"Ошибка при выполнении динамического расчета: {e}")
+            raise
     
     def find_crt_time(self, precision: float, max_time: float) -> float:
         """Поиск критического времени отключения КЗ"""
