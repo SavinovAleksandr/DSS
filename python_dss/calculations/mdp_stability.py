@@ -148,7 +148,8 @@ class MdpStabilityCalc:
                             
                             p_current = rastr.get_val("sechen", "psech", self._selected_sch)
                             iteration = 0
-                            while abs(p_current - mdp_shem.p_pred * 0.9) > 2.0:
+                            max_calibration_iterations = 50  # Максимум итераций калибровки
+                            while abs(p_current - mdp_shem.p_pred * 0.9) > 2.0 and iteration < max_calibration_iterations:
                                 rastr.load(str(tmp_file))
                                 rastr.load(self._vir_path)
                                 mdp_shem.max_step = rastr.step(mdp_shem.max_step * mdp_shem.p_pred * 0.9 / p_current)
@@ -157,6 +158,10 @@ class MdpStabilityCalc:
                                 # Обновление прогресса при калибровке (каждые 3 итерации)
                                 if iteration % 3 == 0 and self._progress_callback:
                                     self._progress_callback(progress)
+                            
+                            if iteration >= max_calibration_iterations:
+                                from utils.logger import logger
+                                logger.warning(f"Достигнуто максимальное количество итераций калибровки ({max_calibration_iterations}) для схемы {vrn.name}")
                             
                             rastr.save(str(tmp_file))
                     
@@ -194,7 +199,11 @@ class MdpStabilityCalc:
                             step_current = step_min + (step_max - step_min) * 0.5
                             
                             iteration = 0
-                            while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable):
+                            max_mdp_iterations = 100  # Максимум итераций поиска МДП
+                            prev_step_current = None
+                            stagnation_count = 0
+                            
+                            while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable) and iteration < max_mdp_iterations:
                                 rastr.load(str(tmp_file))
                                 rastr.load(self._vir_path)
                                 step_actual = rastr.step(step_current)
@@ -210,10 +219,26 @@ class MdpStabilityCalc:
                                         step_max -= 2.0
                                 
                                 step_current = step_min + (step_max - step_min) * 0.5
+                                
+                                # Проверка на застой (если step_current не меняется)
+                                if prev_step_current is not None and abs(step_current - prev_step_current) < 0.001:
+                                    stagnation_count += 1
+                                    if stagnation_count >= 10:
+                                        from utils.logger import logger
+                                        logger.warning(f"Обнаружен застой в поиске МДП без ПА (итерация {iteration}), прерываем цикл")
+                                        break
+                                else:
+                                    stagnation_count = 0
+                                
+                                prev_step_current = step_current
                                 iteration += 1
                                 # Обновление прогресса при итерациях поиска МДП (каждые 3 итерации)
                                 if iteration % 3 == 0 and self._progress_callback:
                                     self._progress_callback(progress)
+                            
+                            if iteration >= max_mdp_iterations:
+                                from utils.logger import logger
+                                logger.warning(f"Достигнуто максимальное количество итераций поиска МДП без ПА ({max_mdp_iterations}) для сценария {Path(scn.name).stem}")
                             
                             no_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
                         elif dyn_result.is_success and dyn_result.is_stable:
@@ -266,7 +291,11 @@ class MdpStabilityCalc:
                             step_current = step_min + (step_max - step_min) * 0.5
                             
                             iteration = 0
-                            while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable):
+                            max_mdp_iterations = 100  # Максимум итераций поиска МДП
+                            prev_step_current = None
+                            stagnation_count = 0
+                            
+                            while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable) and iteration < max_mdp_iterations:
                                 rastr.load(str(tmp_file))
                                 rastr.load(self._vir_path)
                                 step_actual = rastr.step(step_current)
@@ -290,10 +319,26 @@ class MdpStabilityCalc:
                                         step_max -= 2.0
                                 
                                 step_current = step_min + (step_max - step_min) * 0.5
+                                
+                                # Проверка на застой (если step_current не меняется)
+                                if prev_step_current is not None and abs(step_current - prev_step_current) < 0.001:
+                                    stagnation_count += 1
+                                    if stagnation_count >= 10:
+                                        from utils.logger import logger
+                                        logger.warning(f"Обнаружен застой в поиске МДП с ПА (итерация {iteration}), прерываем цикл")
+                                        break
+                                else:
+                                    stagnation_count = 0
+                                
+                                prev_step_current = step_current
                                 iteration += 1
                                 # Обновление прогресса при итерациях поиска МДП с ПА (каждые 3 итерации)
                                 if iteration % 3 == 0 and self._progress_callback:
                                     self._progress_callback(progress)
+                            
+                            if iteration >= max_mdp_iterations:
+                                from utils.logger import logger
+                                logger.warning(f"Достигнуто максимальное количество итераций поиска МДП с ПА ({max_mdp_iterations}) для сценария {Path(scn.name).stem}")
                             
                             with_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
                         elif dyn_result.is_success and dyn_result.is_stable:
