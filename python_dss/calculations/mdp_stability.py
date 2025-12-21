@@ -117,10 +117,14 @@ class MdpStabilityCalc:
                 events_list = []
                 
                 for scn in self._scns:
+                    from utils.logger import logger
+                    logger.debug(f"Обработка сценария: {Path(scn.name).stem} для схемы {vrn.name}")
+                    
                     rastr = RastrOperations()
                     
                     # Инициализация схемы (только один раз)
                     if not mdp_shem.is_ready:
+                        logger.debug(f"Инициализация схемы {vrn.name} для режима {Path(rgm.name).stem}")
                         # Обновление прогресса при начале инициализации схемы
                         if self._progress_callback:
                             self._progress_callback(progress)
@@ -179,6 +183,7 @@ class MdpStabilityCalc:
                     
                     # Расчет без ПА
                     if self._no_pa:
+                        logger.debug(f"Начало расчета МДП без ПА для сценария {Path(scn.name).stem}")
                         # Обновление прогресса при начале расчета без ПА
                         if self._progress_callback:
                             self._progress_callback(progress)
@@ -190,6 +195,7 @@ class MdpStabilityCalc:
                         rastr.load_template(".dfw")
                         
                         dyn_result = rastr.run_dynamic(ems=True)
+                        logger.debug(f"Результат динамики без ПА: успех={dyn_result.is_success}, устойчивость={dyn_result.is_stable}")
                         
                         if dyn_result.is_success and not dyn_result.is_stable:
                             p_current = rastr.get_val("sechen", "psech", self._selected_sch)
@@ -235,6 +241,10 @@ class MdpStabilityCalc:
                                 # Обновление прогресса при итерациях поиска МДП (каждые 3 итерации)
                                 if iteration % 3 == 0 and self._progress_callback:
                                     self._progress_callback(progress)
+                                
+                                # Логирование каждые 20 итераций для диагностики
+                                if iteration % 20 == 0:
+                                    logger.debug(f"Поиск МДП без ПА: итерация {iteration}, p_current={p_current:.2f}, p_stable={p_stable:.2f}, precision={precision:.2f}")
                             
                             if iteration >= max_mdp_iterations:
                                 from utils.logger import logger
@@ -266,6 +276,7 @@ class MdpStabilityCalc:
                     
                     # Расчет с ПА
                     if self._with_pa:
+                        logger.debug(f"Начало расчета МДП с ПА для сценария {Path(scn.name).stem}")
                         # Обновление прогресса при начале расчета с ПА
                         if self._progress_callback:
                             self._progress_callback(progress)
@@ -282,6 +293,7 @@ class MdpStabilityCalc:
                             rastr.load(self._lapnu_path)
                         
                         dyn_result = rastr.run_dynamic(ems=True)
+                        logger.debug(f"Результат динамики с ПА: успех={dyn_result.is_success}, устойчивость={dyn_result.is_stable}")
                         
                         if dyn_result.is_success and not dyn_result.is_stable:
                             p_current = rastr.get_val("sechen", "psech", self._selected_sch)
@@ -335,6 +347,10 @@ class MdpStabilityCalc:
                                 # Обновление прогресса при итерациях поиска МДП с ПА (каждые 3 итерации)
                                 if iteration % 3 == 0 and self._progress_callback:
                                     self._progress_callback(progress)
+                                
+                                # Логирование каждые 20 итераций для диагностики
+                                if iteration % 20 == 0:
+                                    logger.debug(f"Поиск МДП с ПА: итерация {iteration}, p_current={p_current:.2f}, p_stable={p_stable:.2f}, precision={precision:.2f}")
                             
                             if iteration >= max_mdp_iterations:
                                 from utils.logger import logger
