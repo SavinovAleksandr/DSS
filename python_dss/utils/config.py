@@ -216,6 +216,12 @@ class Config:
         
         return result
     
+    def _config_was_modified(self, original: Dict[str, Any], modified: Dict[str, Any]) -> bool:
+        """Проверить, была ли конфигурация изменена (только для путей к шаблонам)"""
+        original_path = original.get("paths", {}).get("rastr_template_dir", "")
+        modified_path = modified.get("paths", {}).get("rastr_template_dir", "")
+        return original_path != modified_path
+    
     def _save_config(self, config: Dict[str, Any]):
         """Сохранить конфигурацию в файл"""
         with open(self.config_file, 'w', encoding='utf-8') as f:
