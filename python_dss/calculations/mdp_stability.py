@@ -106,7 +106,9 @@ class MdpStabilityCalc:
         progress = 0
         results = []
         tmp_file = self._root / "mdp_calc_tmp.rst"
+        tmp_file_base = self._root / "mdp_calc_tmp_base.rst"  # Базовое состояние до калибровки
         logger.info(f"Временный файл: {tmp_file}")
+        logger.info(f"Базовый временный файл: {tmp_file_base}")
         
         # Начальный прогресс
         logger.info(f"Вызов progress_callback с progress={progress}")
@@ -176,16 +178,16 @@ class MdpStabilityCalc:
                             mdp_shem.is_stable = rastr.apply_variant(vrn.num, self._rems_path)
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Результат применения варианта (is_stable): {mdp_shem.is_stable}")
                         
-                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Сохранение во временный файл: {tmp_file}")
-                        rastr.save(str(tmp_file))
-                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Файл сохранен")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Сохранение базового состояния во временный файл: {tmp_file_base}")
+                        rastr.save(str(tmp_file_base))
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Базовый файл сохранен")
                         mdp_shem.is_ready = True
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] is_ready установлен в True")
                         
                         if mdp_shem.is_stable:
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Схема устойчива, продолжаем инициализацию")
-                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка временного файла: {tmp_file}")
-                            rastr.load(str(tmp_file))
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка базового временного файла: {tmp_file_base}")
+                            rastr.load(str(tmp_file_base))
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка файла сечений: {self._sechen_path}")
                             rastr.load(self._sechen_path)
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка файла VIR: {self._vir_path}")
@@ -205,8 +207,8 @@ class MdpStabilityCalc:
                             
                             # Калибровка шага
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] НАЧАЛО КАЛИБРОВКИ ШАГА")
-                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка временного файла для калибровки")
-                            rastr.load(str(tmp_file))
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка базового временного файла для калибровки: {tmp_file_base}")
+                            rastr.load(str(tmp_file_base))
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Загрузка VIR для калибровки")
                             rastr.load(self._vir_path)
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Вызов step({mdp_shem.max_step * 0.9})")
@@ -223,7 +225,8 @@ class MdpStabilityCalc:
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Начало цикла калибровки (макс. {max_calibration_iterations} итераций)")
                             while abs(p_current - mdp_shem.p_pred * 0.9) > 2.0 and iteration < max_calibration_iterations:
                                 logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}] Калибровка, итерация {iteration + 1}: p_current={p_current:.2f}, цель={mdp_shem.p_pred * 0.9:.2f}, разница={abs(p_current - mdp_shem.p_pred * 0.9):.2f}")
-                                rastr.load(str(tmp_file))
+                                logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Калибровка, итерация {iteration + 1}: загрузка базового файла: {tmp_file_base}")
+                                rastr.load(str(tmp_file_base))
                                 rastr.load(self._vir_path)
                                 mdp_shem.max_step = rastr.step(mdp_shem.max_step * mdp_shem.p_pred * 0.9 / p_current)
                                 p_current = rastr.get_val("sechen", "psech", self._selected_sch)
@@ -236,7 +239,8 @@ class MdpStabilityCalc:
                                 from utils.logger import logger
                                 logger.warning(f"Достигнуто максимальное количество итераций калибровки ({max_calibration_iterations}) для схемы {vrn.name}")
                             
-                            rastr.save(str(tmp_file))
+                            # Сохраняем состояние после калибровки (но это не нужно для других сценариев)
+                            # rastr.save(str(tmp_file))  # Убрано, чтобы не влиять на другие сценарии
                     
                     if not mdp_shem.is_stable:
                         logger.warning(f"[СЦЕНАРИЙ {scn_idx + 1}] Схема нестабильна, пропуск дальнейших расчетов")
@@ -262,8 +266,8 @@ class MdpStabilityCalc:
                             self._progress_callback(progress)
                         
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка файлов для расчета")
-                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка временного файла")
-                        rastr.load(str(tmp_file))
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка базового временного файла: {tmp_file_base}")
+                        rastr.load(str(tmp_file_base))
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка файла сечений")
                         rastr.load(self._sechen_path)
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка файла VIR")
@@ -292,7 +296,8 @@ class MdpStabilityCalc:
                             
                             while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable) and iteration < max_mdp_iterations:
                                 logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка файлов")
-                                rastr.load(str(tmp_file))
+                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка базового файла: {tmp_file_base}")
+                                rastr.load(str(tmp_file_base))
                                 rastr.load(self._vir_path)
                                 logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: вызов step({step_current:.2f})")
                                 step_actual = rastr.step(step_current)
@@ -380,13 +385,18 @@ class MdpStabilityCalc:
                     
                     # Расчет с ПА
                     if self._with_pa:
-                        logger.debug(f"Начало расчета МДП с ПА для сценария {Path(scn.name).stem}")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] ========== НАЧАЛО РАСЧЕТА С ПА ==========")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Начало расчета МДП с ПА для сценария {Path(scn.name).stem}")
                         # Обновление прогресса при начале расчета с ПА
                         if self._progress_callback:
                             self._progress_callback(progress)
                         
-                        rastr.load(str(tmp_file))
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Загрузка файлов для расчета")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Загрузка базового временного файла: {tmp_file_base}")
+                        rastr.load(str(tmp_file_base))
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Загрузка файла сечений")
                         rastr.load(self._sechen_path)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Загрузка файла VIR")
                         rastr.load(self._vir_path)
                         
                         if self._use_lpn:
@@ -412,7 +422,8 @@ class MdpStabilityCalc:
                             stagnation_count = 0
                             
                             while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable) and iteration < max_mdp_iterations:
-                                rastr.load(str(tmp_file))
+                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Итерация {iteration + 1}: загрузка базового файла: {tmp_file_base}")
+                                rastr.load(str(tmp_file_base))
                                 rastr.load(self._vir_path)
                                 step_actual = rastr.step(step_current)
                                 
