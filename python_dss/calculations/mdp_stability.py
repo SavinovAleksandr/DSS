@@ -97,6 +97,10 @@ class MdpStabilityCalc:
         results = []
         tmp_file = self._root / "mdp_calc_tmp.rst"
         
+        # Начальный прогресс
+        if self._progress_callback:
+            self._progress_callback(progress)
+        
         for rgm in self._rgms:
             mdp_shems_list = []
             
@@ -139,11 +143,16 @@ class MdpStabilityCalc:
                             mdp_shem.max_step = rastr.step(mdp_shem.max_step * 0.9)
                             
                             p_current = rastr.get_val("sechen", "psech", self._selected_sch)
+                            iteration = 0
                             while abs(p_current - mdp_shem.p_pred * 0.9) > 2.0:
                                 rastr.load(str(tmp_file))
                                 rastr.load(self._vir_path)
                                 mdp_shem.max_step = rastr.step(mdp_shem.max_step * mdp_shem.p_pred * 0.9 / p_current)
                                 p_current = rastr.get_val("sechen", "psech", self._selected_sch)
+                                iteration += 1
+                                # Обновление прогресса при калибровке (каждые 5 итераций)
+                                if iteration % 5 == 0 and self._progress_callback:
+                                    self._progress_callback(progress)
                             
                             rastr.save(str(tmp_file))
                     
@@ -176,6 +185,7 @@ class MdpStabilityCalc:
                             step_max = 0.0 - mdp_shem.max_step
                             step_current = step_min + (step_max - step_min) * 0.5
                             
+                            iteration = 0
                             while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable):
                                 rastr.load(str(tmp_file))
                                 rastr.load(self._vir_path)
@@ -192,6 +202,10 @@ class MdpStabilityCalc:
                                         step_max -= 2.0
                                 
                                 step_current = step_min + (step_max - step_min) * 0.5
+                                iteration += 1
+                                # Обновление прогресса при итерациях поиска МДП (каждые 3 итерации)
+                                if iteration % 3 == 0 and self._progress_callback:
+                                    self._progress_callback(progress)
                             
                             no_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
                         elif dyn_result.is_success and dyn_result.is_stable:
@@ -239,6 +253,7 @@ class MdpStabilityCalc:
                             step_max = 0.0 - mdp_shem.max_step
                             step_current = step_min + (step_max - step_min) * 0.5
                             
+                            iteration = 0
                             while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable):
                                 rastr.load(str(tmp_file))
                                 rastr.load(self._vir_path)
@@ -263,6 +278,10 @@ class MdpStabilityCalc:
                                         step_max -= 2.0
                                 
                                 step_current = step_min + (step_max - step_min) * 0.5
+                                iteration += 1
+                                # Обновление прогресса при итерациях поиска МДП с ПА (каждые 3 итерации)
+                                if iteration % 3 == 0 and self._progress_callback:
+                                    self._progress_callback(progress)
                             
                             with_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
                         elif dyn_result.is_success and dyn_result.is_stable:
