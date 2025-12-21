@@ -212,36 +212,51 @@ class RastrOperations:
                 table.SetSel(selection_or_index)
                 idx = table.FindNextSel(-1)
                 if idx != -1:
-                    # Пытаемся вызвать GetZ (с заглавной буквы, как в COM-интерфейсе)
+                    # Пытаемся получить значение разными способами
                     try:
-                        return col.GetZ(idx)
-                    except AttributeError:
-                        # Fallback на get_Z (маленькая буква) для совместимости
+                        # Способ 1: прямое обращение через индекс (как свойство)
+                        return col[idx]
+                    except (AttributeError, TypeError, IndexError):
                         try:
-                            return col.get_Z(idx)
-                        except AttributeError as e:
-                            # Последняя попытка - через __getitem__
+                            # Способ 2: GetZ (с заглавной буквы)
+                            return col.GetZ(idx)
+                        except AttributeError:
                             try:
-                                return col[idx]
-                            except:
-                                raise AttributeError(f"Не удалось вызвать GetZ/get_Z для колонки {col_name}: {e}")
+                                # Способ 3: get_Z (маленькая буква)
+                                return col.get_Z(idx)
+                            except AttributeError as e:
+                                # Способ 4: через _oleobj_ напрямую
+                                try:
+                                    import pythoncom
+                                    # Пробуем получить значение через Invoke с индексом
+                                    return col._oleobj_.Invoke(0, idx)
+                                except:
+                                    raise AttributeError(f"Не удалось получить значение для колонки {col_name}[{idx}]: {e}")
                 return None
             else:
                 # Проверяем, что индекс валиден
                 if selection_or_index < 0 or selection_or_index >= table.Size:
                     raise IndexError(f"Индекс {selection_or_index} вне диапазона таблицы {table_name} (размер: {table.Size})")
+                # Пытаемся получить значение разными способами
                 try:
-                    return col.GetZ(selection_or_index)
-                except AttributeError:
-                    # Fallback на get_Z (маленькая буква) для совместимости
+                    # Способ 1: прямое обращение через индекс (как свойство)
+                    return col[selection_or_index]
+                except (AttributeError, TypeError, IndexError):
                     try:
-                        return col.get_Z(selection_or_index)
-                    except AttributeError as e:
-                        # Последняя попытка - через __getitem__
+                        # Способ 2: GetZ (с заглавной буквы)
+                        return col.GetZ(selection_or_index)
+                    except AttributeError:
                         try:
-                            return col[selection_or_index]
-                        except:
-                            raise AttributeError(f"Не удалось вызвать GetZ/get_Z для колонки {col_name}: {e}")
+                            # Способ 3: get_Z (маленькая буква)
+                            return col.get_Z(selection_or_index)
+                        except AttributeError as e:
+                            # Способ 4: через _oleobj_ напрямую
+                            try:
+                                import pythoncom
+                                # Пробуем получить значение через Invoke с индексом
+                                return col._oleobj_.Invoke(0, selection_or_index)
+                            except:
+                                raise AttributeError(f"Не удалось получить значение для колонки {col_name}[{selection_or_index}]: {e}")
         except Exception as e:
             from utils.logger import logger
             logger.error(f"Ошибка при получении значения из {table_name}.{col_name} (индекс/выборка: {selection_or_index}): {e}")
@@ -260,17 +275,24 @@ class RastrOperations:
             
             col = table.Cols.Item(col_name)
             try:
-                col.SetZ(index, value)
-            except AttributeError:
-                # Fallback на set_Z (маленькая буква) для совместимости
+                # Способ 1: прямое присваивание через индекс
+                col[index] = value
+            except (AttributeError, TypeError, IndexError):
                 try:
-                    col.set_Z(index, value)
-                except AttributeError as e:
-                    # Последняя попытка - через прямое присваивание
+                    # Способ 2: SetZ (с заглавной буквы)
+                    col.SetZ(index, value)
+                except AttributeError:
                     try:
-                        col[index] = value
-                    except:
-                        raise AttributeError(f"Не удалось вызвать SetZ/set_Z для колонки {col_name}: {e}")
+                        # Способ 3: set_Z (маленькая буква)
+                        col.set_Z(index, value)
+                    except AttributeError as e:
+                        # Способ 4: через _oleobj_ напрямую
+                        try:
+                            import pythoncom
+                            # Пробуем установить значение через Invoke
+                            col._oleobj_.Invoke(1, index, value)
+                        except:
+                            raise AttributeError(f"Не удалось установить значение для колонки {col_name}[{index}] = {value}: {e}")
             return True
         except Exception as e:
             from utils.logger import logger
