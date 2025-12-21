@@ -306,20 +306,55 @@ class RastrOperations:
         try:
             from utils.logger import logger
             
-            table = self._rastr.Tables.Item("com_dynamics")
+            # Пытаемся получить таблицу com_dynamics
+            try:
+                table = self._rastr.Tables.Item("com_dynamics")
+            except Exception as e:
+                # Если таблица не существует, загружаем шаблон .dfw
+                logger.warning(f"Таблица com_dynamics не найдена, загружаем шаблон .dfw: {e}")
+                try:
+                    self.load_template(".dfw")
+                    table = self._rastr.Tables.Item("com_dynamics")
+                except Exception as e2:
+                    logger.error(f"Не удалось загрузить шаблон .dfw или получить таблицу com_dynamics: {e2}")
+                    raise RuntimeError(f"Таблица com_dynamics недоступна. Проверьте, что шаблон .dfw существует в директории шаблонов.")
             
             # Проверяем, что таблица существует и имеет хотя бы одну строку
             if table.Size == 0:
                 logger.warning("Таблица com_dynamics пуста, добавляем строку")
                 table.AddRow()
             
-            col_max_result_files = table.Cols.Item("MaxResultFiles")
-            col_snap_auto_load = table.Cols.Item("SnapAutoLoad")
-            col_snap_max_count = table.Cols.Item("SnapMaxCount")
+            # Получаем колонки с проверкой существования
+            try:
+                col_max_result_files = table.Cols.Item("MaxResultFiles")
+                col_snap_auto_load = table.Cols.Item("SnapAutoLoad")
+                col_snap_max_count = table.Cols.Item("SnapMaxCount")
+            except Exception as e:
+                logger.error(f"Не удалось получить колонки таблицы com_dynamics: {e}")
+                raise RuntimeError(f"Колонки таблицы com_dynamics недоступны. Возможно, файл режима не загружен правильно.")
             
-            col_max_result_files.set_Z(0, 1)
-            col_snap_auto_load.set_Z(0, 1)
-            col_snap_max_count.set_Z(0, 1)
+            # Устанавливаем значения с обработкой ошибок для каждой колонки отдельно
+            try:
+                col_max_result_files.set_Z(0, 1)
+            except Exception as e:
+                logger.error(f"Ошибка при установке MaxResultFiles: {e}")
+                raise
+            
+            try:
+                col_snap_auto_load.set_Z(0, 1)
+            except Exception as e:
+                logger.error(f"Ошибка при установке SnapAutoLoad: {e}")
+                raise
+            
+            try:
+                col_snap_max_count.set_Z(0, 1)
+            except Exception as e:
+                logger.error(f"Ошибка при установке SnapMaxCount: {e}")
+                raise
+                
+        except RuntimeError:
+            # Пробрасываем RuntimeError как есть
+            raise
         except Exception as e:
             from utils.logger import logger
             logger.error(f"Ошибка при настройке параметров динамики: {e}")
