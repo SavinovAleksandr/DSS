@@ -22,7 +22,9 @@ except ImportError:
 class RastrOperations:
     """Класс для работы с RASTR через COM-интерфейс"""
     
-    # GUID для RASTR COM объекта
+    # Имя COM-объекта RASTR (используется вместо GUID для лучшей совместимости)
+    RASTR_PROGID = "Astra.Rastr"
+    # GUID для RASTR COM объекта (fallback)
     RASTR_CLSID = "{EFC5E4AD-A3DD-11D3-B73F-00500454CF3F}"
     
     def __init__(self):
@@ -30,18 +32,21 @@ class RastrOperations:
             raise ImportError("pywin32 не установлен. RASTR операции недоступны на этой платформе.")
         
         try:
-            # Используем DispatchEx для лучшей поддержки COM-интерфейсов
-            # или EnsureDispatch для генерации типов
+            # Пытаемся использовать ProgID (как в рабочей версии)
             try:
-                # Пытаемся использовать gencache для генерации типов
-                self._rastr = win32com.client.gencache.EnsureDispatch(self.RASTR_CLSID)
+                self._rastr = win32com.client.Dispatch(self.RASTR_PROGID)
             except:
-                # Если не получилось, используем DispatchEx
+                # Если не получилось, используем GUID
                 try:
-                    self._rastr = win32com.client.DispatchEx(self.RASTR_CLSID)
+                    # Пытаемся использовать gencache для генерации типов
+                    self._rastr = win32com.client.gencache.EnsureDispatch(self.RASTR_CLSID)
                 except:
-                    # Fallback на обычный Dispatch
-                    self._rastr = win32com.client.Dispatch(self.RASTR_CLSID)
+                    # Если не получилось, используем DispatchEx
+                    try:
+                        self._rastr = win32com.client.DispatchEx(self.RASTR_CLSID)
+                    except:
+                        # Fallback на обычный Dispatch
+                        self._rastr = win32com.client.Dispatch(self.RASTR_CLSID)
         except Exception as e:
             raise RuntimeError(f"Не удалось подключиться к RASTR: {str(e)}")
     
@@ -214,23 +219,21 @@ class RastrOperations:
                 if idx != -1:
                     # Пытаемся получить значение разными способами
                     try:
-                        # Способ 1: прямое обращение через индекс (как свойство)
-                        return col[idx]
-                    except (AttributeError, TypeError, IndexError):
+                        # Способ 1: Z(index) - свойство с индексом (как в рабочей версии)
+                        return col.Z(idx)
+                    except (AttributeError, TypeError):
                         try:
-                            # Способ 2: GetZ (с заглавной буквы)
-                            return col.GetZ(idx)
-                        except AttributeError:
+                            # Способ 2: прямое обращение через индекс
+                            return col[idx]
+                        except (AttributeError, TypeError, IndexError):
                             try:
-                                # Способ 3: get_Z (маленькая буква)
-                                return col.get_Z(idx)
-                            except AttributeError as e:
-                                # Способ 4: через _oleobj_ напрямую
+                                # Способ 3: GetZ (с заглавной буквы)
+                                return col.GetZ(idx)
+                            except AttributeError:
                                 try:
-                                    import pythoncom
-                                    # Пробуем получить значение через Invoke с индексом
-                                    return col._oleobj_.Invoke(0, idx)
-                                except:
+                                    # Способ 4: get_Z (маленькая буква)
+                                    return col.get_Z(idx)
+                                except AttributeError as e:
                                     raise AttributeError(f"Не удалось получить значение для колонки {col_name}[{idx}]: {e}")
                 return None
             else:
@@ -239,23 +242,21 @@ class RastrOperations:
                     raise IndexError(f"Индекс {selection_or_index} вне диапазона таблицы {table_name} (размер: {table.Size})")
                 # Пытаемся получить значение разными способами
                 try:
-                    # Способ 1: прямое обращение через индекс (как свойство)
-                    return col[selection_or_index]
-                except (AttributeError, TypeError, IndexError):
+                    # Способ 1: Z(index) - свойство с индексом (как в рабочей версии)
+                    return col.Z(selection_or_index)
+                except (AttributeError, TypeError):
                     try:
-                        # Способ 2: GetZ (с заглавной буквы)
-                        return col.GetZ(selection_or_index)
-                    except AttributeError:
+                        # Способ 2: прямое обращение через индекс
+                        return col[selection_or_index]
+                    except (AttributeError, TypeError, IndexError):
                         try:
-                            # Способ 3: get_Z (маленькая буква)
-                            return col.get_Z(selection_or_index)
-                        except AttributeError as e:
-                            # Способ 4: через _oleobj_ напрямую
+                            # Способ 3: GetZ (с заглавной буквы)
+                            return col.GetZ(selection_or_index)
+                        except AttributeError:
                             try:
-                                import pythoncom
-                                # Пробуем получить значение через Invoke с индексом
-                                return col._oleobj_.Invoke(0, selection_or_index)
-                            except:
+                                # Способ 4: get_Z (маленькая буква)
+                                return col.get_Z(selection_or_index)
+                            except AttributeError as e:
                                 raise AttributeError(f"Не удалось получить значение для колонки {col_name}[{selection_or_index}]: {e}")
         except Exception as e:
             from utils.logger import logger
@@ -275,24 +276,18 @@ class RastrOperations:
             
             col = table.Cols.Item(col_name)
             try:
-                # Способ 1: прямое присваивание через индекс
-                col[index] = value
-            except (AttributeError, TypeError, IndexError):
+                # Способ 1: SetZ(index, value) - метод (как в рабочей версии)
+                col.SetZ(index, value)
+            except AttributeError:
                 try:
-                    # Способ 2: SetZ (с заглавной буквы)
-                    col.SetZ(index, value)
-                except AttributeError:
+                    # Способ 2: прямое присваивание через индекс
+                    col[index] = value
+                except (AttributeError, TypeError, IndexError):
                     try:
                         # Способ 3: set_Z (маленькая буква)
                         col.set_Z(index, value)
                     except AttributeError as e:
-                        # Способ 4: через _oleobj_ напрямую
-                        try:
-                            import pythoncom
-                            # Пробуем установить значение через Invoke
-                            col._oleobj_.Invoke(1, index, value)
-                        except:
-                            raise AttributeError(f"Не удалось установить значение для колонки {col_name}[{index}] = {value}: {e}")
+                        raise AttributeError(f"Не удалось установить значение для колонки {col_name}[{index}] = {value}: {e}")
             return True
         except Exception as e:
             from utils.logger import logger
@@ -352,14 +347,17 @@ class RastrOperations:
         while self._rastr.step_ut("z") == 0:
             pass
         
-        # Используем прямое обращение через индекс
+        # Используем Z(index) - свойство с индексом (как в рабочей версии)
         try:
-            return col_sum_kfc[0]
-        except (AttributeError, TypeError, IndexError):
+            return col_sum_kfc.Z(0)
+        except (AttributeError, TypeError):
             try:
-                return col_sum_kfc.GetZ(0)
-            except AttributeError:
-                return col_sum_kfc.get_Z(0)
+                return col_sum_kfc[0]
+            except (AttributeError, TypeError, IndexError):
+                try:
+                    return col_sum_kfc.GetZ(0)
+                except AttributeError:
+                    return col_sum_kfc.get_Z(0)
     
     def step(self, step_value: float = 1.0, init: bool = True) -> float:
         """Выполнение шага утяжеления"""
@@ -373,14 +371,17 @@ class RastrOperations:
         col_kfc.SetZ(0, step_value)
         self._rastr.step_ut("z")
         
-        # Используем прямое обращение через индекс
+        # Используем Z(index) - свойство с индексом (как в рабочей версии)
         try:
-            return col_sum_kfc[0]
-        except (AttributeError, TypeError, IndexError):
+            return col_sum_kfc.Z(0)
+        except (AttributeError, TypeError):
             try:
-                return col_sum_kfc.GetZ(0)
-            except AttributeError:
-                return col_sum_kfc.get_Z(0)
+                return col_sum_kfc[0]
+            except (AttributeError, TypeError, IndexError):
+                try:
+                    return col_sum_kfc.GetZ(0)
+                except AttributeError:
+                    return col_sum_kfc.get_Z(0)
     
     def dyn_settings(self):
         """Настройка параметров динамики"""
@@ -465,14 +466,17 @@ class RastrOperations:
                 table.AddRow()
             
             col_tras = table.Cols.Item("Tras")
-            # Используем прямое обращение через индекс
+            # Используем Z(index) - свойство с индексом (как в рабочей версии)
             try:
-                original_time = col_tras[0]
-            except (AttributeError, TypeError, IndexError):
+                original_time = col_tras.Z(0)
+            except (AttributeError, TypeError):
                 try:
-                    original_time = col_tras.GetZ(0)
-                except AttributeError:
-                    original_time = col_tras.get_Z(0)
+                    original_time = col_tras[0]
+                except (AttributeError, TypeError, IndexError):
+                    try:
+                        original_time = col_tras.GetZ(0)
+                    except AttributeError:
+                        original_time = col_tras.get_Z(0)
             
             self.load_template(".dfw")
             
