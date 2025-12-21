@@ -174,6 +174,10 @@ class MdpStabilityCalc:
                     
                     # Расчет без ПА
                     if self._no_pa:
+                        # Обновление прогресса при начале расчета без ПА
+                        if self._progress_callback:
+                            self._progress_callback(progress)
+                        
                         rastr.load(str(tmp_file))
                         rastr.load(self._sechen_path)
                         rastr.load(self._vir_path)
