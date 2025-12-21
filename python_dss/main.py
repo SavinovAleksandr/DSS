@@ -30,6 +30,19 @@ def main():
         logger.info("Запуск StabLimit")
         logger.audit("APPLICATION_START", "Запуск приложения")
         
+        # Вывод пути к логам для удобства пользователя
+        try:
+            log_dir = config.get_path("paths.logs_dir")
+            print(f"\n{'='*60}")
+            print(f"Лог-файлы StabLimit находятся в:")
+            print(f"  {log_dir.absolute()}")
+            print(f"\nОсновные файлы:")
+            print(f"  - {log_dir / 'stablimit.log'} (полный лог)")
+            print(f"  - {log_dir / 'errors.log'} (только ошибки)")
+            print(f"{'='*60}\n")
+        except Exception as e:
+            print(f"Не удалось определить путь к логам: {e}")
+        
         # Выбор UI: проверяем переменную окружения, конфиг или используем современный UI по умолчанию
         use_modern_ui = os.getenv('DSS_USE_MODERN_UI', '').lower()
         if not use_modern_ui:
