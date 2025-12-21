@@ -343,26 +343,52 @@ class MainWindow:
         """Обработка перетаскивания файлов"""
         try:
             # Получаем список файлов из события
+            files = []
             try:
-                # Для tkinterdnd2
-                files = self.root.tk.splitlist(event.data)
-            except:
+                # Для tkinterdnd2 - event.data содержит строку с путями файлов
+                data = event.data
+                if isinstance(data, str):
+                    # Разделяем строку на отдельные пути
+                    # tkinterdnd2 может возвращать пути в фигурных скобках или через пробелы
+                    if '{' in data:
+                        # Формат с фигурными скобками: {file1} {file2}
+                        import re
+                        files = re.findall(r'\{([^}]+)\}', data)
+                    else:
+                        # Простой формат: file1 file2
+                        files = self.root.tk.splitlist(data) if hasattr(self.root.tk, 'splitlist') else data.split()
+                else:
+                    files = [str(data)]
+            except Exception as e:
+                logger.warning(f"Ошибка при парсинге данных drag-and-drop: {e}")
                 # Альтернативный способ
-                files = str(event.data).split()
+                try:
+                    files = str(event.data).split()
+                except:
+                    files = []
             
-            # Фильтруем только файлы (убираем фигурные скобки если есть)
+            # Фильтруем и очищаем пути к файлам
             clean_files = []
             for f in files:
-                f = f.strip('{}')
-                if f and Path(f).exists():
-                    clean_files.append(f)
+                if not f:
+                    continue
+                # Убираем фигурные скобки и кавычки
+                f = f.strip('{}"\'')
+                # Проверяем существование файла
+                file_path = Path(f)
+                if file_path.exists() and file_path.is_file():
+                    clean_files.append(str(file_path.absolute()))
             
             if clean_files:
                 logger.info(f"Перетащено файлов: {len(clean_files)}")
                 logger.audit("FILE_DROP", f"Перетащено файлов: {len(clean_files)}")
                 self._add_files_from_list(clean_files)
             else:
-                logger.warning("Не удалось определить файлы из drag-and-drop")
+                logger.warning(f"Не удалось определить файлы из drag-and-drop. Данные: {event.data}")
+                messagebox.showwarning(
+                    "Предупреждение",
+                    "Не удалось определить файлы из перетаскивания.\n\nПопробуйте использовать кнопку 'Добавить' для выбора файлов."
+                )
         except Exception as e:
             user_message, _ = error_handler.handle_error(
                 e,
