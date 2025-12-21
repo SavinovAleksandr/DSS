@@ -215,22 +215,41 @@ class RastrOperations:
     
     def set_val(self, table_name: str, col_name: str, index: int, value: Any) -> bool:
         """Установка значения в таблицу"""
-        table = self._rastr.Tables.Item(table_name)
-        col = table.Cols.Item(col_name)
-        col.set_Z(index, value)
-        return True
+        try:
+            from utils.logger import logger
+            
+            table = self._rastr.Tables.Item(table_name)
+            
+            # Проверяем, что индекс валиден
+            if index < 0 or index >= table.Size:
+                raise IndexError(f"Индекс {index} вне диапазона таблицы {table_name} (размер: {table.Size})")
+            
+            col = table.Cols.Item(col_name)
+            col.set_Z(index, value)
+            return True
+        except Exception as e:
+            from utils.logger import logger
+            logger.error(f"Ошибка при установке значения в {table_name}.{col_name}[{index}] = {value}: {e}")
+            raise
     
     def set_val_by_selection(self, table_name: str, col_name: str, selection: str, value: Any) -> bool:
         """Установка значения по условию выборки"""
-        table = self._rastr.Tables.Item(table_name)
-        col = table.Cols.Item(col_name)
-        table.SetSel(selection)
-        idx = table.FindNextSel(-1)
-        
-        if idx != -1:
-            col.set_Z(idx, value)
-            return True
-        return False
+        try:
+            from utils.logger import logger
+            
+            table = self._rastr.Tables.Item(table_name)
+            col = table.Cols.Item(col_name)
+            table.SetSel(selection)
+            idx = table.FindNextSel(-1)
+            
+            if idx != -1:
+                col.set_Z(idx, value)
+                return True
+            return False
+        except Exception as e:
+            from utils.logger import logger
+            logger.error(f"Ошибка при установке значения в {table_name}.{col_name} (выборка: {selection}) = {value}: {e}")
+            raise
     
     def create_scn_from_lpn(self, lpn_file: str, lpn: str, scn_file: str, save_file: str = ""):
         """Создание сценария из LPN файла"""
@@ -284,14 +303,27 @@ class RastrOperations:
     
     def dyn_settings(self):
         """Настройка параметров динамики"""
-        table = self._rastr.Tables.Item("com_dynamics")
-        col_max_result_files = table.Cols.Item("MaxResultFiles")
-        col_snap_auto_load = table.Cols.Item("SnapAutoLoad")
-        col_snap_max_count = table.Cols.Item("SnapMaxCount")
-        
-        col_max_result_files.set_Z(0, 1)
-        col_snap_auto_load.set_Z(0, 1)
-        col_snap_max_count.set_Z(0, 1)
+        try:
+            from utils.logger import logger
+            
+            table = self._rastr.Tables.Item("com_dynamics")
+            
+            # Проверяем, что таблица существует и имеет хотя бы одну строку
+            if table.Size == 0:
+                logger.warning("Таблица com_dynamics пуста, добавляем строку")
+                table.AddRow()
+            
+            col_max_result_files = table.Cols.Item("MaxResultFiles")
+            col_snap_auto_load = table.Cols.Item("SnapAutoLoad")
+            col_snap_max_count = table.Cols.Item("SnapMaxCount")
+            
+            col_max_result_files.set_Z(0, 1)
+            col_snap_auto_load.set_Z(0, 1)
+            col_snap_max_count.set_Z(0, 1)
+        except Exception as e:
+            from utils.logger import logger
+            logger.error(f"Ошибка при настройке параметров динамики: {e}")
+            raise RuntimeError(f"Не удалось настроить параметры динамики: {e}")
     
     def run_dynamic(self, ems: bool = False, max_time: float = -1.0) -> DynamicResult:
         """Запуск динамического расчета"""
