@@ -21,12 +21,39 @@ def check_license() -> bool:
     # Проверка отключения лицензии (для тестирования)
     # Можно отключить через переменную окружения или конфиг
     disable_license = os.environ.get('STABLIMIT_DISABLE_LICENSE', '').lower() == 'true'
+    
+    # Логирование для отладки
+    try:
+        from .logger import logger
+        if disable_license:
+            logger.info("Проверка лицензии отключена через переменную окружения STABLIMIT_DISABLE_LICENSE")
+    except:
+        pass
+    
     if not disable_license:
-        disable_license = config.get("license.disable_check", False)
+        try:
+            disable_license = config.get("license.disable_check", False)
+            if disable_license:
+                try:
+                    from .logger import logger
+                    logger.info("Проверка лицензии отключена через конфигурацию (license.disable_check=True)")
+                except:
+                    pass
+        except Exception as e:
+            # Если конфиг еще не загружен, используем значение по умолчанию
+            try:
+                from .logger import logger
+                logger.warning(f"Не удалось загрузить настройку license.disable_check: {e}")
+            except:
+                pass
+            disable_license = False
     
     if disable_license:
-        from .logger import logger
-        logger.warning("⚠️  Проверка лицензии ОТКЛЮЧЕНА (режим тестирования)")
+        try:
+            from .logger import logger
+            logger.warning("⚠️  Проверка лицензии ОТКЛЮЧЕНА (режим тестирования)")
+        except:
+            pass  # Если logger еще не инициализирован, пропускаем
         return True
     
     machine_name = os.environ.get('COMPUTERNAME', '') or os.environ.get('HOSTNAME', '')
