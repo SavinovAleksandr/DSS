@@ -546,13 +546,18 @@ class MdpStabilityCalc:
         else:
             logger.warning("Финальный progress_callback не установлен")
         
-        # Удаление временного файла
-        logger.info(f"Удаление временного файла: {tmp_file}")
+        # Удаление временных файлов
+        logger.info(f"Удаление временных файлов")
         if tmp_file.exists():
             tmp_file.unlink()
-            logger.info("Временный файл удален")
+            logger.info(f"Временный файл удален: {tmp_file}")
         else:
-            logger.warning("Временный файл не найден для удаления")
+            logger.warning(f"Временный файл не найден для удаления: {tmp_file}")
+        if tmp_file_base.exists():
+            tmp_file_base.unlink()
+            logger.info(f"Базовый временный файл удален: {tmp_file_base}")
+        else:
+            logger.warning(f"Базовый временный файл не найден для удаления: {tmp_file_base}")
         
         logger.info("=" * 80)
         logger.info("КОНЕЦ МЕТОДА calc() В MdpStabilityCalc")
