@@ -114,6 +114,21 @@ class Config:
                 
                 # Слияние с конфигурацией по умолчанию
                 merged_config = self._merge_config(default_config, user_config)
+                
+                # Сохраняем исправленную конфигурацию, если она была изменена
+                if merged_config != user_config:
+                    try:
+                        self._save_config(merged_config)
+                        try:
+                            _get_logger().info("Конфигурация исправлена и сохранена")
+                        except:
+                            pass
+                    except Exception as e:
+                        try:
+                            _get_logger().warning(f"Не удалось сохранить исправленную конфигурацию: {e}")
+                        except:
+                            pass
+                
                 try:
                     _get_logger().info("Конфигурация загружена из файла")
                 except:
@@ -134,6 +149,21 @@ class Config:
                 
                 if user_config:
                     merged_config = self._merge_config(default_config, user_config)
+                    
+                    # Сохраняем исправленную конфигурацию в JSON, если она была изменена
+                    if merged_config != user_config:
+                        try:
+                            self._save_config(merged_config)
+                            try:
+                                _get_logger().info("Конфигурация исправлена и сохранена")
+                            except:
+                                pass
+                        except Exception as e:
+                            try:
+                                _get_logger().warning(f"Не удалось сохранить исправленную конфигурацию: {e}")
+                            except:
+                                pass
+                    
                     try:
                         _get_logger().info("Конфигурация загружена из YAML файла")
                     except:
