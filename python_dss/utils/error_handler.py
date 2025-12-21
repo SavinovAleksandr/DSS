@@ -105,9 +105,13 @@ class ErrorHandler:
         # Специальная обработка FileNotFoundError для шаблонов RASTR
         if isinstance(error, FileNotFoundError):
             error_str = str(error)
+            # Если сообщение уже содержит подробную информацию о шаблоне,
+            # используем его как есть (оно уже содержит правильный путь)
+            if ("Проверьте:" in error_str and "директория шаблонов" in error_str):
+                base_message = error_str
             # Проверяем, связана ли ошибка с шаблоном RASTR
-            if ("шаблон" in error_str.lower() or "template" in error_str.lower() or
-                ".sch" in error_str or ".rst" in error_str or ".dfw" in error_str):
+            elif ("шаблон" in error_str.lower() or "template" in error_str.lower() or
+                  ".sch" in error_str or ".rst" in error_str or ".dfw" in error_str):
                 template_dir = config.get_path("paths.rastr_template_dir")
                 base_message = (
                     f"Файл не найден. Проверьте путь к файлу.\n\n"
