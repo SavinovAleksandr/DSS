@@ -352,7 +352,14 @@ class RastrOperations:
         while self._rastr.step_ut("z") == 0:
             pass
         
-        return col_sum_kfc.GetZ(0)
+        # Используем прямое обращение через индекс
+        try:
+            return col_sum_kfc[0]
+        except (AttributeError, TypeError, IndexError):
+            try:
+                return col_sum_kfc.GetZ(0)
+            except AttributeError:
+                return col_sum_kfc.get_Z(0)
     
     def step(self, step_value: float = 1.0, init: bool = True) -> float:
         """Выполнение шага утяжеления"""
@@ -366,7 +373,14 @@ class RastrOperations:
         col_kfc.SetZ(0, step_value)
         self._rastr.step_ut("z")
         
-        return col_sum_kfc.GetZ(0)
+        # Используем прямое обращение через индекс
+        try:
+            return col_sum_kfc[0]
+        except (AttributeError, TypeError, IndexError):
+            try:
+                return col_sum_kfc.GetZ(0)
+            except AttributeError:
+                return col_sum_kfc.get_Z(0)
     
     def dyn_settings(self):
         """Настройка параметров динамики"""
