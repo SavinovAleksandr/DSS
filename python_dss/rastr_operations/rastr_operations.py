@@ -41,26 +41,57 @@ class RastrOperations:
     @staticmethod
     def find_template_path_with_extension(extension: str) -> Optional[str]:
         """Поиск шаблона по расширению"""
-        template_dir = Path.home() / "RastrWIN3" / "SHABLON"
+        from utils.config import config
+        
+        from utils.logger import logger
+        
+        # Получаем путь к директории шаблонов из конфигурации
+        template_dir = config.get_path("paths.rastr_template_dir")
         
         if not template_dir.exists():
-            return None
+            logger.warning(f"Директория шаблонов не найдена: {template_dir}")
+            # Пробуем стандартный путь
+            template_dir = Path.home() / "RastrWIN3" / "SHABLON"
+            if not template_dir.exists():
+                logger.warning(f"Стандартная директория шаблонов не найдена: {template_dir}")
+                return None
         
+        # Ищем шаблон с нужным расширением
         for file in template_dir.glob(f"*{extension}"):
             if file.stem != "базовый режим мт":
+                logger.debug(f"Найден шаблон: {file}")
                 return str(file)
         
+        logger.warning(f"Шаблон для расширения {extension} не найден в {template_dir}")
         return None
     
     def load(self, file: str):
         """Загрузка файла в RASTR"""
-        shabl = self.find_template_path_with_extension(Path(file).suffix)
+        from utils.config import config
+        from utils.logger import logger
+        
+        file_path = Path(file)
+        extension = file_path.suffix
+        
+        if not file_path.exists():
+            raise FileNotFoundError(f"Файл не найден: {file}")
+        
+        shabl = self.find_template_path_with_extension(extension)
         if shabl:
             self._rastr.NewFile(shabl)
             # RG_REPL = 0 (замена)
-            self._rastr.Load(0, file, shabl)
+            self._rastr.Load(0, str(file_path), shabl)
         else:
-            raise FileNotFoundError(f"Шаблон для расширения {Path(file).suffix} не найден")
+            # Более подробное сообщение об ошибке
+            template_dir = config.get_path("paths.rastr_template_dir")
+            error_msg = (
+                f"Шаблон для расширения {extension} не найден.\n\n"
+                f"Проверьте:\n"
+                f"1. Существует ли директория шаблонов: {template_dir}\n"
+                f"2. Есть ли в ней файл с расширением {extension}\n"
+                f"3. Правильно ли настроен путь в конфигурации (paths.rastr_template_dir)"
+            )
+            raise FileNotFoundError(error_msg)
     
     def load_template(self, extension: str):
         """Загрузка шаблона"""
