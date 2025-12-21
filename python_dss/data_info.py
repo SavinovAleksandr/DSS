@@ -4,6 +4,9 @@
 
 import csv
 import locale
+import os
+import platform
+import subprocess
 from pathlib import Path
 from typing import List, Optional, Callable
 
@@ -293,6 +296,7 @@ class DataInfo:
             
             self.shunt_results = calc.calc()
             self._save_results_to_excel(calc.root)
+            self._open_results_folder(calc.root)
             return calc.root
         finally:
             self.is_active = False
@@ -319,6 +323,7 @@ class DataInfo:
             
             self.crt_time_results = calc.calc()
             self._save_results_to_excel(calc.root)
+            self._open_results_folder(calc.root)
             return calc.root
         finally:
             self.is_active = False
@@ -347,6 +352,7 @@ class DataInfo:
             
             self.dyn_results = calc.calc()
             self._save_results_to_excel(calc.root)
+            self._open_results_folder(calc.root)
             return calc.root
         finally:
             self.is_active = False
@@ -410,6 +416,9 @@ class DataInfo:
             self._save_results_to_excel(calc.root)
             logger.info(f"Результаты сохранены в: {calc.root}")
             
+            # Открываем папку с результатами
+            self._open_results_folder(calc.root)
+            
             return calc.root
         except Exception as e:
             logger.exception(f"ОШИБКА В calc_mdp_stability: {type(e).__name__}: {e}")
@@ -444,11 +453,31 @@ class DataInfo:
             
             self.uost_results = calc.calc()
             self._save_results_to_excel(calc.root)
+            self._open_results_folder(calc.root)
             return calc.root
         finally:
             self.is_active = False
             self.progress = 0
             self.label = ""
+    
+    def _open_results_folder(self, folder_path: str):
+        """Открыть папку с результатами в проводнике/файловом менеджере"""
+        try:
+            folder = Path(folder_path)
+            if not folder.exists():
+                logger.warning(f"Папка результатов не существует: {folder_path}")
+                return
+            
+            if platform.system() == "Windows":
+                os.startfile(str(folder))
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", str(folder)])
+            else:  # Linux
+                subprocess.run(["xdg-open", str(folder)])
+            
+            logger.info(f"Открыта папка с результатами: {folder_path}")
+        except Exception as e:
+            logger.error(f"Не удалось открыть папку с результатами: {e}")
     
     def _clear_all_results(self):
         """Очистка всех результатов"""

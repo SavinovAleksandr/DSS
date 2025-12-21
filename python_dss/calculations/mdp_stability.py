@@ -353,12 +353,12 @@ class MdpStabilityCalc:
                             no_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] МДП найден после итераций: {no_pa_mdp:.2f}")
                         elif dyn_result.is_success and dyn_result.is_stable:
-                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Результат сразу устойчив, МДП = значение сечения после загрузки сценария")
-                            # Если результат устойчив, используем значение ДО расчета динамики (после загрузки сценария)
-                            # Это значение уже получено выше как p_before_dyn
-                            no_pa_mdp = p_before_dyn
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Результат сразу устойчив, МДП = значение сечения ПОСЛЕ расчета динамики")
+                            # Используем значение ПОСЛЕ расчета динамики (даже если результат устойчив)
+                            # Это значение уже получено выше как p_after_dyn
+                            no_pa_mdp = p_after_dyn
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] МДП (устойчив): {no_pa_mdp:.2f}")
-                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сценарий: {Path(scn.name).stem}, p_start={mdp_shem.p_start:.2f}, p_before_dyn={p_before_dyn:.2f}")
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сценарий: {Path(scn.name).stem}, p_start={mdp_shem.p_start:.2f}, p_before_dyn={p_before_dyn:.2f}, p_after_dyn={p_after_dyn:.2f}")
                         else:
                             logger.warning(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Расчет динамики не успешен, МДП = -1")
                             no_pa_mdp = -1.0
