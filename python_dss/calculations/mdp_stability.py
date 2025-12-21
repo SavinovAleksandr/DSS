@@ -345,14 +345,17 @@ class MdpStabilityCalc:
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] МДП найден после итераций: {no_pa_mdp:.2f}")
                         elif dyn_result.is_success and dyn_result.is_stable:
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Результат сразу устойчив, МДП = текущее значение сечения")
+                            # Получаем значение ПОСЛЕ расчета динамики (состояние должно быть изменено)
                             no_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] МДП (устойчив): {no_pa_mdp:.2f}")
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сценарий: {Path(scn.name).stem}, p_start={mdp_shem.p_start:.2f}")
                         else:
                             logger.warning(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Расчет динамики не успешен, МДП = -1")
                             no_pa_mdp = -1.0
                         
                         # Сбор данных по сечениям (всегда, если расчет выполнен)
-                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сбор данных по сечениям")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сбор данных по сечениям ПОСЛЕ расчета динамики")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сценарий: {Path(scn.name).stem}, no_pa_mdp={no_pa_mdp:.2f}")
                         for sch in [s for s in self._schs if s.control]:
                             try:
                                 value = rastr.get_val("sechen", "psech", sch.id)
@@ -361,7 +364,7 @@ class MdpStabilityCalc:
                                     name=sch.name,
                                     value=value
                                 ))
-                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сечение {sch.name} (ID {sch.id}): {value:.2f}")
+                                logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сечение {sch.name} (ID {sch.id}): {value:.2f}")
                             except Exception as e:
                                 logger.error(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Ошибка при получении значения сечения {sch.name} (ID {sch.id}): {e}")
 
@@ -513,15 +516,20 @@ class MdpStabilityCalc:
                         if self._progress_callback:
                             self._progress_callback(progress)
                     
-                    events_list.append(MdpEvents(
+                    logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Создание объекта MdpEvents для сценария: {Path(scn.name).stem}")
+                    logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] Данные для сохранения: no_pa_mdp={no_pa_mdp:.2f}, сечений={len(no_pa_sechen)}, КПР={len(no_pa_kpr)}")
+                    mdp_event = MdpEvents(
                         name=Path(scn.name).stem,
-                        no_pa_sechen=no_pa_sechen,
-                        no_pa_kpr=no_pa_kpr,
+                        no_pa_sechen=no_pa_sechen.copy() if no_pa_sechen else [],
+                        no_pa_kpr=no_pa_kpr.copy() if no_pa_kpr else [],
                         no_pa_mdp=no_pa_mdp,
-                        with_pa_sechen=with_pa_sechen,
-                        with_pa_kpr=with_pa_kpr,
+                        with_pa_sechen=with_pa_sechen.copy() if with_pa_sechen else [],
+                        with_pa_kpr=with_pa_kpr.copy() if with_pa_kpr else [],
                         with_pa_mdp=with_pa_mdp
-                    ))
+                    )
+                    logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] MdpEvents создан: name={mdp_event.name}, no_pa_mdp={mdp_event.no_pa_mdp:.2f}")
+                    events_list.append(mdp_event)
+                    logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}] MdpEvents добавлен в events_list. Всего событий: {len(events_list)}")
                 
                 mdp_shem.events = events_list
                 mdp_shems_list.append(mdp_shem)
