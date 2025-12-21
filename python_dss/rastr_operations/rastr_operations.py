@@ -30,7 +30,18 @@ class RastrOperations:
             raise ImportError("pywin32 не установлен. RASTR операции недоступны на этой платформе.")
         
         try:
-            self._rastr = win32com.client.Dispatch(self.RASTR_CLSID)
+            # Используем DispatchEx для лучшей поддержки COM-интерфейсов
+            # или EnsureDispatch для генерации типов
+            try:
+                # Пытаемся использовать gencache для генерации типов
+                self._rastr = win32com.client.gencache.EnsureDispatch(self.RASTR_CLSID)
+            except:
+                # Если не получилось, используем DispatchEx
+                try:
+                    self._rastr = win32com.client.DispatchEx(self.RASTR_CLSID)
+                except:
+                    # Fallback на обычный Dispatch
+                    self._rastr = win32com.client.Dispatch(self.RASTR_CLSID)
         except Exception as e:
             raise RuntimeError(f"Не удалось подключиться к RASTR: {str(e)}")
     
@@ -201,13 +212,22 @@ class RastrOperations:
                 table.SetSel(selection_or_index)
                 idx = table.FindNextSel(-1)
                 if idx != -1:
-                    return col.get_Z(idx)
+                    # Используем Invoke для вызова get_Z через COM
+                    try:
+                        return col.get_Z(idx)
+                    except AttributeError:
+                        # Если get_Z не найден, используем Invoke
+                        return col._oleobj_.Invoke(0, idx)  # DispID для get_Z обычно 0
                 return None
             else:
                 # Проверяем, что индекс валиден
                 if selection_or_index < 0 or selection_or_index >= table.Size:
                     raise IndexError(f"Индекс {selection_or_index} вне диапазона таблицы {table_name} (размер: {table.Size})")
-                return col.get_Z(selection_or_index)
+                try:
+                    return col.get_Z(selection_or_index)
+                except AttributeError:
+                    # Если get_Z не найден, используем Invoke
+                    return col._oleobj_.Invoke(0, selection_or_index)
         except Exception as e:
             from utils.logger import logger
             logger.error(f"Ошибка при получении значения из {table_name}.{col_name} (индекс/выборка: {selection_or_index}): {e}")
@@ -225,7 +245,12 @@ class RastrOperations:
                 raise IndexError(f"Индекс {index} вне диапазона таблицы {table_name} (размер: {table.Size})")
             
             col = table.Cols.Item(col_name)
-            col.set_Z(index, value)
+            try:
+                col.set_Z(index, value)
+            except AttributeError:
+                # Если set_Z не найден, используем Invoke через COM
+                # DispID для set_Z обычно 1 (put)
+                col._oleobj_.Invoke(1, index, value)
             return True
         except Exception as e:
             from utils.logger import logger
