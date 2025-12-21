@@ -461,24 +461,42 @@ class MdpStabilityCalc:
                                 logger.warning(f"Достигнуто максимальное количество итераций поиска МДП с ПА ({max_mdp_iterations}) для сценария {Path(scn.name).stem}")
                             
                             with_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] МДП найден после итераций: {with_pa_mdp:.2f}")
                         elif dyn_result.is_success and dyn_result.is_stable:
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Результат сразу устойчив, МДП = текущее значение сечения")
                             with_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] МДП (устойчив): {with_pa_mdp:.2f}")
+                        else:
+                            logger.warning(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Расчет динамики не успешен, МДП = -1")
+                            with_pa_mdp = -1.0
                         
-                        # Сбор данных по сечениям
+                        # Сбор данных по сечениям (всегда, если расчет выполнен)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Сбор данных по сечениям")
                         for sch in [s for s in self._schs if s.control]:
-                            with_pa_sechen.append(Values(
-                                id=sch.id,
-                                name=sch.name,
-                                value=rastr.get_val("sechen", "psech", sch.id)
-                            ))
-                        
-                        # Сбор данных по контролируемым величинам
+                            try:
+                                value = rastr.get_val("sechen", "psech", sch.id)
+                                with_pa_sechen.append(Values(
+                                    id=sch.id,
+                                    name=sch.name,
+                                    value=value
+                                ))
+                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Сечение {sch.name} (ID {sch.id}): {value:.2f}")
+                            except Exception as e:
+                                logger.error(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Ошибка при получении значения сечения {sch.name} (ID {sch.id}): {e}")
+
+                        # Сбор данных по контролируемым величинам (всегда, если расчет выполнен)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Сбор данных по контролируемым величинам")
                         for kpr in self._kprs:
-                            with_pa_kpr.append(Values(
-                                id=kpr.id,
-                                name=kpr.name,
-                                value=rastr.get_val(kpr.table, kpr.col, kpr.selection)
-                            ))
+                            try:
+                                value = rastr.get_val(kpr.table, kpr.col, kpr.selection)
+                                with_pa_kpr.append(Values(
+                                    id=kpr.id,
+                                    name=kpr.name,
+                                    value=value
+                                ))
+                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] КПР {kpr.name} (ID {kpr.id}): {value:.2f}")
+                            except Exception as e:
+                                logger.error(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Ошибка при получении значения КПР {kpr.name} (ID {kpr.id}): {e}")
                         
                         progress += 1
                         if self._progress_callback:
