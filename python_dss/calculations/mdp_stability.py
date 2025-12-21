@@ -272,16 +272,26 @@ class MdpStabilityCalc:
                         rastr.load(self._sechen_path)
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка файла VIR")
                         rastr.load(self._vir_path)
+                        
+                        # Получаем значение сечения ДО загрузки сценария (для сравнения)
+                        p_before_scn = rastr.get_val("sechen", "psech", self._selected_sch)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Значение сечения ДО загрузки сценария: {p_before_scn:.2f}")
+                        
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка сценария: {scn.name}")
                         rastr.load(scn.name)
+                        
+                        # Получаем значение сечения ПОСЛЕ загрузки сценария (ДО расчета динамики)
+                        p_after_scn = rastr.get_val("sechen", "psech", self._selected_sch)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Значение сечения ПОСЛЕ загрузки сценария (ДО run_dynamic): {p_after_scn:.2f} (изменение от базового: {p_after_scn - p_before_scn:.2f})")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сценарий: {Path(scn.name).stem}")
+                        
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Загрузка шаблона .dfw")
                         rastr.load_template(".dfw")
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Все файлы загружены")
                         
-                        # Получаем значение сечения ДО расчета динамики (после загрузки сценария)
+                        # Получаем значение сечения ДО расчета динамики (после загрузки шаблона)
                         p_before_dyn = rastr.get_val("sechen", "psech", self._selected_sch)
-                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Значение сечения ДО run_dynamic (после загрузки сценария): {p_before_dyn:.2f}")
-                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сценарий: {Path(scn.name).stem}")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Значение сечения ДО run_dynamic (после загрузки шаблона): {p_before_dyn:.2f}")
                         
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Вызов run_dynamic(ems=True)")
                         dyn_result = rastr.run_dynamic(ems=True)
@@ -353,12 +363,14 @@ class MdpStabilityCalc:
                             no_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] МДП найден после итераций: {no_pa_mdp:.2f}")
                         elif dyn_result.is_success and dyn_result.is_stable:
-                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Результат сразу устойчив, МДП = значение сечения ПОСЛЕ расчета динамики")
-                            # Используем значение ПОСЛЕ расчета динамики (даже если результат устойчив)
-                            # Это значение уже получено выше как p_after_dyn
-                            no_pa_mdp = p_after_dyn
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Результат сразу устойчив, МДП = значение сечения ПОСЛЕ загрузки сценария")
+                            # Используем значение ПОСЛЕ загрузки сценария (ДО run_dynamic)
+                            # Это значение отражает состояние после применения конкретного сценария
+                            # и должно быть разным для разных сценариев
+                            no_pa_mdp = p_after_scn
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] МДП (устойчив): {no_pa_mdp:.2f}")
-                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сценарий: {Path(scn.name).stem}, p_start={mdp_shem.p_start:.2f}, p_before_dyn={p_before_dyn:.2f}, p_after_dyn={p_after_dyn:.2f}")
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сценарий: {Path(scn.name).stem}")
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Значения: p_start={mdp_shem.p_start:.2f}, p_before_scn={p_before_scn:.2f}, p_after_scn={p_after_scn:.2f}, p_before_dyn={p_before_dyn:.2f}, p_after_dyn={p_after_dyn:.2f}")
                         else:
                             logger.warning(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Расчет динамики не успешен, МДП = -1")
                             no_pa_mdp = -1.0
@@ -412,15 +424,30 @@ class MdpStabilityCalc:
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Загрузка файла VIR")
                         rastr.load(self._vir_path)
                         
+                        # Получаем значение сечения ДО загрузки сценария/ПА (для сравнения)
+                        p_before_scn_pa = rastr.get_val("sechen", "psech", self._selected_sch)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Значение сечения ДО загрузки сценария/ПА: {p_before_scn_pa:.2f}")
+                        
                         if self._use_lpn:
                             rastr.load(self._sechen_path)
                             rastr.create_scn_from_lpn(self._lapnu_path, self._lpns, scn.name)
                         else:
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Загрузка сценария: {scn.name}")
                             rastr.load(scn.name)
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Загрузка ПА: {self._lapnu_path}")
                             rastr.load(self._lapnu_path)
                         
+                        # Получаем значение сечения ПОСЛЕ загрузки сценария/ПА (ДО расчета динамики)
+                        p_after_scn_pa = rastr.get_val("sechen", "psech", self._selected_sch)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Значение сечения ПОСЛЕ загрузки сценария/ПА (ДО run_dynamic): {p_after_scn_pa:.2f} (изменение от базового: {p_after_scn_pa - p_before_scn_pa:.2f})")
+                        
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Вызов run_dynamic(ems=True)")
                         dyn_result = rastr.run_dynamic(ems=True)
-                        logger.debug(f"Результат динамики с ПА: успех={dyn_result.is_success}, устойчивость={dyn_result.is_stable}")
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Результат динамики: успех={dyn_result.is_success}, устойчивость={dyn_result.is_stable}")
+                        
+                        # Получаем значение сечения ПОСЛЕ расчета динамики для диагностики
+                        p_after_dyn_pa = rastr.get_val("sechen", "psech", self._selected_sch)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Значение сечения ПОСЛЕ run_dynamic: {p_after_dyn_pa:.2f} (изменение: {p_after_dyn_pa - p_after_scn_pa:.2f})")
                         
                         if dyn_result.is_success and not dyn_result.is_stable:
                             p_current = rastr.get_val("sechen", "psech", self._selected_sch)
