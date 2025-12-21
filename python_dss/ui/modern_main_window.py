@@ -258,25 +258,76 @@ class ModernMainWindow:
     def _setup_drag_drop(self):
         """Настройка drag & drop для файлов"""
         try:
-            # Попытка использовать tkinterdnd2 если доступен
+            # Для CustomTkinter используем нативный tkinter root для drag-and-drop
+            # CustomTkinter основан на tkinter, поэтому можно использовать tkinterdnd2
             try:
                 from tkinterdnd2 import DND_FILES, TkinterDnD
-                if isinstance(self.root, TkinterDnD.DnDWrapper):
-                    self.root.drop_target_register(DND_FILES)
-                    self.root.dnd_bind('<<Drop>>', self._on_drop)
-                    logger.info("Drag & drop настроен (tkinterdnd2)")
+                
+                # Получаем нативный tkinter root из CustomTkinter
+                tk_root = self.root.tk
+                
+                # Создаем обертку для drag-and-drop
+                dnd_root = TkinterDnD.DnDWrapper(tk_root)
+                dnd_root.drop_target_register(DND_FILES)
+                dnd_root.dnd_bind('<<Drop>>', self._on_drop)
+                
+                # Регистрируем drag-and-drop на всех виджетах окна
+                self._register_drag_drop_recursive(self.root, dnd_root)
+                
+                logger.info("Drag & drop настроен (tkinterdnd2 для CustomTkinter)")
             except ImportError:
-                logger.info("tkinterdnd2 не установлен, drag & drop недоступен")
+                logger.warning("tkinterdnd2 не установлен. Для drag-and-drop установите: pip install tkinterdnd2")
+            except Exception as e:
+                logger.warning(f"Не удалось настроить drag & drop: {e}")
         except Exception as e:
             logger.warning(f"Не удалось настроить drag & drop: {e}")
+    
+    def _register_drag_drop_recursive(self, widget, dnd_root):
+        """Рекурсивно регистрировать drag-and-drop на всех виджетах"""
+        try:
+            from tkinterdnd2 import DND_FILES
+            # Регистрируем на текущем виджете
+            try:
+                widget_tk = widget.tk if hasattr(widget, 'tk') else widget
+                if hasattr(widget_tk, 'drop_target_register'):
+                    widget_tk.drop_target_register(DND_FILES)
+                    widget_tk.dnd_bind('<<Drop>>', self._on_drop)
+            except:
+                pass
+            
+            # Рекурсивно обрабатываем дочерние виджеты
+            try:
+                for child in widget.winfo_children():
+                    self._register_drag_drop_recursive(child, dnd_root)
+            except:
+                pass
+        except:
+            pass
     
     def _on_drop(self, event):
         """Обработка перетаскивания файлов"""
         try:
-            files = self.root.tk.splitlist(event.data)
-            logger.info(f"Перетащено файлов: {len(files)}")
-            logger.audit("FILE_DROP", f"Перетащено файлов: {len(files)}")
-            self._add_files_from_list(files)
+            # Получаем список файлов из события
+            try:
+                # Для tkinterdnd2
+                files = self.root.tk.splitlist(event.data)
+            except:
+                # Альтернативный способ
+                files = str(event.data).split()
+            
+            # Фильтруем только файлы (убираем фигурные скобки если есть)
+            clean_files = []
+            for f in files:
+                f = f.strip('{}')
+                if f and Path(f).exists():
+                    clean_files.append(f)
+            
+            if clean_files:
+                logger.info(f"Перетащено файлов: {len(clean_files)}")
+                logger.audit("FILE_DROP", f"Перетащено файлов: {len(clean_files)}")
+                self._add_files_from_list(clean_files)
+            else:
+                logger.warning("Не удалось определить файлы из drag-and-drop")
         except Exception as e:
             user_message, _ = error_handler.handle_error(
                 e,

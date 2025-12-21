@@ -81,6 +81,9 @@ class MainWindow:
         # Создание интерфейса
         self._create_ui()
         
+        # Настройка drag-and-drop
+        self._setup_drag_drop()
+        
         # Обновление интерфейса
         self._update_ui()
         
@@ -253,6 +256,120 @@ class MainWindow:
                 if not recovered:
                     messagebox.showerror("Ошибка", user_message)
                 logger.audit("FILE_ADD_ERROR", f"Ошибка при добавлении файлов: {str(e)}")
+    
+    def _add_files_from_list(self, file_paths):
+        """Добавление файлов из списка (для drag-and-drop)"""
+        if file_paths:
+            try:
+                logger.info(f"Добавление файлов: {len(file_paths)} файлов")
+                # Валидация файлов перед добавлением
+                invalid_files = []
+                for file_path in file_paths:
+                    is_valid, error_msg = error_handler.validate_file_path(Path(file_path))
+                    if not is_valid:
+                        invalid_files.append((file_path, error_msg))
+                        logger.warning(f"Невалидный файл: {file_path} - {error_msg}")
+                
+                if invalid_files:
+                    error_msg = "Следующие файлы не могут быть добавлены:\n\n"
+                    error_msg += "\n".join([f"{fp}: {msg}" for fp, msg in invalid_files])
+                    messagebox.showwarning("Предупреждение", error_msg)
+                    # Продолжаем с валидными файлами
+                    valid_files = [fp for fp in file_paths if Path(fp) not in [Path(ifp[0]) for ifp in invalid_files]]
+                    if valid_files:
+                        self.data_info.add_files(valid_files)
+                        logger.info(f"Добавлено {len(valid_files)} валидных файлов")
+                else:
+                    self.data_info.add_files(list(file_paths))
+                    logger.info(f"Все {len(file_paths)} файлов добавлены успешно")
+                
+                self._update_ui()
+                logger.audit("FILE_ADD_SUCCESS", f"Успешно добавлено файлов: {len(file_paths)}")
+            except Exception as e:
+                user_message, recovered = error_handler.handle_error(
+                    e,
+                    context="Добавление файлов",
+                    show_to_user=True
+                )
+                if not recovered:
+                    messagebox.showerror("Ошибка", user_message)
+                logger.audit("FILE_ADD_ERROR", f"Ошибка при добавлении файлов: {str(e)}")
+    
+    def _setup_drag_drop(self):
+        """Настройка drag & drop для файлов"""
+        try:
+            # Используем tkinterdnd2 если доступен
+            try:
+                from tkinterdnd2 import DND_FILES, TkinterDnD
+                
+                # Обертываем root в TkinterDnD
+                dnd_root = TkinterDnD.DnDWrapper(self.root)
+                dnd_root.drop_target_register(DND_FILES)
+                dnd_root.dnd_bind('<<Drop>>', self._on_drop)
+                
+                # Регистрируем drag-and-drop на всех виджетах окна
+                self._register_drag_drop_recursive(self.root, dnd_root)
+                
+                logger.info("Drag & drop настроен (tkinterdnd2)")
+            except ImportError:
+                logger.warning("tkinterdnd2 не установлен. Для drag-and-drop установите: pip install tkinterdnd2")
+            except Exception as e:
+                logger.warning(f"Не удалось настроить drag & drop: {e}")
+        except Exception as e:
+            logger.warning(f"Не удалось настроить drag & drop: {e}")
+    
+    def _register_drag_drop_recursive(self, widget, dnd_root):
+        """Рекурсивно регистрировать drag-and-drop на всех виджетах"""
+        try:
+            from tkinterdnd2 import DND_FILES
+            # Регистрируем на текущем виджете
+            try:
+                if hasattr(widget, 'drop_target_register'):
+                    widget.drop_target_register(DND_FILES)
+                    widget.dnd_bind('<<Drop>>', self._on_drop)
+            except:
+                pass
+            
+            # Рекурсивно обрабатываем дочерние виджеты
+            try:
+                for child in widget.winfo_children():
+                    self._register_drag_drop_recursive(child, dnd_root)
+            except:
+                pass
+        except:
+            pass
+    
+    def _on_drop(self, event):
+        """Обработка перетаскивания файлов"""
+        try:
+            # Получаем список файлов из события
+            try:
+                # Для tkinterdnd2
+                files = self.root.tk.splitlist(event.data)
+            except:
+                # Альтернативный способ
+                files = str(event.data).split()
+            
+            # Фильтруем только файлы (убираем фигурные скобки если есть)
+            clean_files = []
+            for f in files:
+                f = f.strip('{}')
+                if f and Path(f).exists():
+                    clean_files.append(f)
+            
+            if clean_files:
+                logger.info(f"Перетащено файлов: {len(clean_files)}")
+                logger.audit("FILE_DROP", f"Перетащено файлов: {len(clean_files)}")
+                self._add_files_from_list(clean_files)
+            else:
+                logger.warning("Не удалось определить файлы из drag-and-drop")
+        except Exception as e:
+            user_message, _ = error_handler.handle_error(
+                e,
+                context="Перетаскивание файлов",
+                show_to_user=True
+            )
+            messagebox.showerror("Ошибка", user_message)
     
     def _delete_files(self):
         """Удаление выбранных файлов"""

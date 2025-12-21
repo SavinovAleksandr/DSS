@@ -13,6 +13,9 @@ kaleido>=0.2.1
 customtkinter>=5.2.0
 Pillow>=10.0.0
 
+# Drag and Drop поддержка
+tkinterdnd2>=0.3.0
+
 # Интеграция с RASTR (только для Windows)
 pywin32>=306; sys_platform == 'win32'
 
