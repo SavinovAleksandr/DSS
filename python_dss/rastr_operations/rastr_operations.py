@@ -374,15 +374,19 @@ class RastrOperations:
         prev_result = None
         stagnation_count = 0
         
-        while self._rastr.step_ut("i") == 0:
+        while True:
+            result = self._rastr.step_ut("i")
+            if result != 0:
+                logger.info(f"run_ut: Инициализация завершена, результат: {result}")
+                break
+            
             init_iteration += 1
             if init_iteration >= max_init_iterations:
                 logger.warning(f"run_ut: Достигнуто максимальное количество итераций инициализации ({max_init_iterations}), прерываем цикл")
                 break
             
             # Проверка на застой (если результат не меняется)
-            current_result = self._rastr.step_ut("i")
-            if current_result == prev_result and init_iteration > 10:
+            if result == prev_result and init_iteration > 10:
                 stagnation_count += 1
                 if stagnation_count >= 10:
                     logger.warning(f"run_ut: Обнаружен застой в инициализации (итерация {init_iteration}), прерываем цикл")
@@ -390,7 +394,7 @@ class RastrOperations:
             else:
                 stagnation_count = 0
             
-            prev_result = current_result
+            prev_result = result
             
             if init_iteration % 100 == 0:
                 logger.debug(f"run_ut: Инициализация, итерация {init_iteration}")
@@ -403,15 +407,19 @@ class RastrOperations:
         prev_step_result = None
         step_stagnation_count = 0
         
-        while self._rastr.step_ut("z") == 0:
+        while True:
+            result = self._rastr.step_ut("z")
+            if result != 0:
+                logger.info(f"run_ut: Шаг утяжеления завершен, результат: {result}")
+                break
+            
             step_iteration += 1
             if step_iteration >= max_step_iterations:
                 logger.warning(f"run_ut: Достигнуто максимальное количество итераций шага ({max_step_iterations}), прерываем цикл")
                 break
             
             # Проверка на застой
-            current_step_result = self._rastr.step_ut("z")
-            if current_step_result == prev_step_result and step_iteration > 10:
+            if result == prev_step_result and step_iteration > 10:
                 step_stagnation_count += 1
                 if step_stagnation_count >= 10:
                     logger.warning(f"run_ut: Обнаружен застой в шаге утяжеления (итерация {step_iteration}), прерываем цикл")
@@ -419,7 +427,7 @@ class RastrOperations:
             else:
                 step_stagnation_count = 0
             
-            prev_step_result = current_step_result
+            prev_step_result = result
             
             if step_iteration % 100 == 0:
                 logger.debug(f"run_ut: Шаг утяжеления, итерация {step_iteration}")
