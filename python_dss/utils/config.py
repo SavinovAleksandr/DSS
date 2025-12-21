@@ -116,7 +116,7 @@ class Config:
                 merged_config = self._merge_config(default_config, user_config)
                 
                 # Сохраняем исправленную конфигурацию, если она была изменена
-                if merged_config != user_config:
+                if self._config_was_modified(user_config, merged_config):
                     try:
                         self._save_config(merged_config)
                         try:
@@ -151,7 +151,7 @@ class Config:
                     merged_config = self._merge_config(default_config, user_config)
                     
                     # Сохраняем исправленную конфигурацию в JSON, если она была изменена
-                    if merged_config != user_config:
+                    if self._config_was_modified(user_config, merged_config):
                         try:
                             self._save_config(merged_config)
                             try:
