@@ -337,6 +337,10 @@ class MdpStabilityCalc:
                 mdp_shems=mdp_shems_list
             ))
         
+        # Финальное обновление прогресса (100%)
+        if self._progress_callback:
+            self._progress_callback(progress)
+        
         # Удаление временного файла
         if tmp_file.exists():
             tmp_file.unlink()
