@@ -18,6 +18,7 @@ from excel_operations import ExcelOperations
 from utils.exceptions import UncorrectFileException, RastrUnavailableException
 from utils.config import config
 from utils.file_type_detector import FileTypeDetector
+from utils.logger import logger
 
 # Условный импорт RastrOperations для кроссплатформенности
 try:
@@ -143,13 +144,27 @@ class DataInfo:
         rastr.load(file_path)
         sections = rastr.selection("sechen")
         
+        if not sections:
+            logger.warning(f"В файле сечений {file_path} не найдено ни одного сечения")
+            return
+        
         for section_id in sections:
-            self.sch_inf.append(SchInfo(
-                id=section_id,
-                name=rastr.get_val("sechen", "name", section_id),
-                num=rastr.get_val("sechen", "ns", section_id),
-                control=rastr.get_val("sechen", "sta", section_id)
-            ))
+            try:
+                # Безопасное получение значений с обработкой ошибок
+                name = rastr.get_val("sechen", "name", section_id) or ""
+                num = rastr.get_val("sechen", "ns", section_id) or 0
+                control = rastr.get_val("sechen", "sta", section_id) or 0
+                
+                self.sch_inf.append(SchInfo(
+                    id=section_id,
+                    name=name,
+                    num=num,
+                    control=control
+                ))
+            except Exception as e:
+                logger.error(f"Ошибка при чтении сечения с ID {section_id}: {e}")
+                # Продолжаем обработку остальных сечений
+                continue
     
     def _handle_rems_vrn_file(self, file_path: str):
         """Обработка файла ремонтных схем"""

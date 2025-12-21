@@ -193,17 +193,25 @@ class RastrOperations:
     
     def get_val(self, table_name: str, col_name: str, selection_or_index: Union[str, int]) -> Any:
         """Получение значения из таблицы"""
-        table = self._rastr.Tables.Item(table_name)
-        col = table.Cols.Item(col_name)
-        
-        if isinstance(selection_or_index, str):
-            table.SetSel(selection_or_index)
-            idx = table.FindNextSel(-1)
-            if idx != -1:
-                return col.get_Z(idx)
-            return None
-        else:
-            return col.get_Z(selection_or_index)
+        try:
+            table = self._rastr.Tables.Item(table_name)
+            col = table.Cols.Item(col_name)
+            
+            if isinstance(selection_or_index, str):
+                table.SetSel(selection_or_index)
+                idx = table.FindNextSel(-1)
+                if idx != -1:
+                    return col.get_Z(idx)
+                return None
+            else:
+                # Проверяем, что индекс валиден
+                if selection_or_index < 0 or selection_or_index >= table.Size:
+                    raise IndexError(f"Индекс {selection_or_index} вне диапазона таблицы {table_name} (размер: {table.Size})")
+                return col.get_Z(selection_or_index)
+        except Exception as e:
+            from utils.logger import logger
+            logger.error(f"Ошибка при получении значения из {table_name}.{col_name} (индекс/выборка: {selection_or_index}): {e}")
+            raise
     
     def set_val(self, table_name: str, col_name: str, index: int, value: Any) -> bool:
         """Установка значения в таблицу"""
