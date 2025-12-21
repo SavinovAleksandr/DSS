@@ -170,6 +170,20 @@ class Config:
             else:
                 result[key] = value
         
+        # Автоматическое исправление старого пути к шаблонам RASTR
+        if "paths" in result and "rastr_template_dir" in result["paths"]:
+            old_path = result["paths"]["rastr_template_dir"]
+            # Если используется старый путь RastrWIN3, заменяем на новый
+            if isinstance(old_path, str) and "RastrWIN3" in old_path and "Documents" not in old_path:
+                result["paths"]["rastr_template_dir"] = "~/Documents/RastrWin3/SHABLON"
+                try:
+                    _get_logger().info(
+                        f"Автоматически исправлен путь к шаблонам RASTR: "
+                        f"{old_path} -> ~/Documents/RastrWin3/SHABLON"
+                    )
+                except:
+                    pass
+        
         return result
     
     def _save_config(self, config: Dict[str, Any]):
