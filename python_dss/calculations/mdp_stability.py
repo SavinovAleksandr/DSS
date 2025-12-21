@@ -121,6 +121,10 @@ class MdpStabilityCalc:
                     
                     # Инициализация схемы (только один раз)
                     if not mdp_shem.is_ready:
+                        # Обновление прогресса при начале инициализации схемы
+                        if self._progress_callback:
+                            self._progress_callback(progress)
+                        
                         rastr.load(rgm.name)
                         rastr.dyn_settings()
                         
@@ -150,8 +154,8 @@ class MdpStabilityCalc:
                                 mdp_shem.max_step = rastr.step(mdp_shem.max_step * mdp_shem.p_pred * 0.9 / p_current)
                                 p_current = rastr.get_val("sechen", "psech", self._selected_sch)
                                 iteration += 1
-                                # Обновление прогресса при калибровке (каждые 5 итераций)
-                                if iteration % 5 == 0 and self._progress_callback:
+                                # Обновление прогресса при калибровке (каждые 3 итерации)
+                                if iteration % 3 == 0 and self._progress_callback:
                                     self._progress_callback(progress)
                             
                             rastr.save(str(tmp_file))
@@ -233,6 +237,10 @@ class MdpStabilityCalc:
                     
                     # Расчет с ПА
                     if self._with_pa:
+                        # Обновление прогресса при начале расчета с ПА
+                        if self._progress_callback:
+                            self._progress_callback(progress)
+                        
                         rastr.load(str(tmp_file))
                         rastr.load(self._sechen_path)
                         rastr.load(self._vir_path)
