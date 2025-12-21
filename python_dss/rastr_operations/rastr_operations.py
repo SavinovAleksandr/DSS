@@ -144,11 +144,22 @@ class RastrOperations:
     
     def add(self, file: str):
         """Добавление файла (RG_ADD = 1)"""
-        shabl = self.find_template_path_with_extension(Path(file).suffix)
+        from utils.config import config
+        extension = Path(file).suffix
+        shabl = self.find_template_path_with_extension(extension)
         if shabl:
             self._rastr.Load(1, file, shabl)
         else:
-            raise FileNotFoundError(f"Шаблон для расширения {Path(file).suffix} не найден")
+            template_dir = config.get_path("paths.rastr_template_dir")
+            error_msg = (
+                f"Шаблон для расширения {extension} не найден.\n\n"
+                f"Проверьте:\n"
+                f"1. Существует ли директория шаблонов: {template_dir}\n"
+                f"2. Есть ли в ней файл с расширением {extension}\n"
+                f"3. Правильно ли настроен путь в конфигурации "
+                f"(paths.rastr_template_dir)"
+            )
+            raise FileNotFoundError(error_msg)
     
     def rgm(self, param: str = "", iterations: Optional[int] = None, voltage: Optional[float] = None) -> bool:
         """Расчет установившегося режима"""
