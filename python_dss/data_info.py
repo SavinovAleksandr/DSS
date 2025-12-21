@@ -682,40 +682,59 @@ class DataInfo:
             excel.width(4, 15)
             excel.merge(2, 4, 3, 4, horizontal=True, vertical=True)
             
-            excel.set_val(1, 5 + num_sch + num_kpr, "С учетом действия ПА")
-            excel.set_val(2, 5 + num_sch + num_kpr, "МДП, МВт")
-            excel.width(5 + num_sch + num_kpr, 15)
-            excel.merge(2, 5 + num_sch + num_kpr, 3, 5 + num_sch + num_kpr, horizontal=True, vertical=True)
+            # Столбцы "С учетом действия ПА" создаются только если включен расчет с ПА
+            last_col_no_pa = 4 + num_sch + num_kpr
+            if self.dyn_with_pa:
+                excel.set_val(1, 5 + num_sch + num_kpr, "С учетом действия ПА")
+                excel.set_val(2, 5 + num_sch + num_kpr, "МДП, МВт")
+                excel.width(5 + num_sch + num_kpr, 15)
+                excel.merge(2, 5 + num_sch + num_kpr, 3, 5 + num_sch + num_kpr, horizontal=True, vertical=True)
             
             # Заголовки для сечений и контролируемых величин
             if num_sch > 0:
                 excel.set_val(2, 5, "Перетоки в КС, МВт")
-                excel.set_val(2, 6 + num_sch + num_kpr, "Перетоки в КС, МВт")
                 for idx, sch in enumerate([s for s in self.sch_inf if s.control]):
                     excel.set_val(3, 5 + idx, sch.name)
-                    excel.set_val(3, 6 + num_sch + num_kpr + idx, sch.name)
                     excel.width(5 + idx, 15)
-                    excel.width(6 + num_sch + num_kpr + idx, 15)
                 excel.merge(2, 5, 2, 5 + num_sch - 1, horizontal=True, vertical=True)
-                excel.merge(2, 6 + num_sch + num_kpr, 2, 6 + num_sch + num_kpr + num_sch - 1, horizontal=True, vertical=True)
+                
+                # Столбцы для ПА создаются только если включен расчет с ПА
+                if self.dyn_with_pa:
+                    excel.set_val(2, 6 + num_sch + num_kpr, "Перетоки в КС, МВт")
+                    for idx, sch in enumerate([s for s in self.sch_inf if s.control]):
+                        excel.set_val(3, 6 + num_sch + num_kpr + idx, sch.name)
+                        excel.width(6 + num_sch + num_kpr + idx, 15)
+                    excel.merge(2, 6 + num_sch + num_kpr, 2, 6 + num_sch + num_kpr + num_sch - 1, horizontal=True, vertical=True)
             
             if num_kpr > 0:
                 excel.set_val(2, 5 + num_sch, "Контролируемые величины")
-                excel.set_val(2, 6 + 2 * num_sch + num_kpr, "Контролируемые величины")
                 for idx, kpr in enumerate(self.kpr_inf):
                     excel.set_val(3, 5 + num_sch + idx, kpr.name)
-                    excel.set_val(3, 6 + 2 * num_sch + num_kpr + idx, kpr.name)
                     excel.width(5 + num_sch + idx, 15)
-                    excel.width(6 + 2 * num_sch + num_kpr + idx, 15)
                 excel.merge(2, 5 + num_sch, 2, 5 + num_sch + num_kpr - 1, horizontal=True, vertical=True)
-                excel.merge(2, 6 + 2 * num_sch + num_kpr, 2, 6 + 2 * num_sch + num_kpr + num_kpr - 1, horizontal=True, vertical=True)
+                
+                # Столбцы для ПА создаются только если включен расчет с ПА
+                if self.dyn_with_pa:
+                    excel.set_val(2, 6 + 2 * num_sch + num_kpr, "Контролируемые величины")
+                    for idx, kpr in enumerate(self.kpr_inf):
+                        excel.set_val(3, 6 + 2 * num_sch + num_kpr + idx, kpr.name)
+                        excel.width(6 + 2 * num_sch + num_kpr + idx, 15)
+                    excel.merge(2, 6 + 2 * num_sch + num_kpr, 2, 6 + 2 * num_sch + num_kpr + num_kpr - 1, horizontal=True, vertical=True)
             
+            # Объединение заголовков
             if num_sch > 0 or num_kpr > 0:
-                excel.merge(1, 4, 1, 4 + num_sch + num_kpr, horizontal=True, vertical=True)
-                excel.merge(1, 5 + num_sch + num_kpr, 1, 5 + 2 * num_sch + 2 * num_kpr, horizontal=True, vertical=True)
+                excel.merge(1, 4, 1, last_col_no_pa, horizontal=True, vertical=True)
+                if self.dyn_with_pa:
+                    last_col_with_pa = 5 + 2 * num_sch + 2 * num_kpr
+                    excel.merge(1, 5 + num_sch + num_kpr, 1, last_col_with_pa, horizontal=True, vertical=True)
+                    last_col = last_col_with_pa
+                else:
+                    last_col = last_col_no_pa
+            else:
+                last_col = 4
             
-            excel.format(1, 1, 3, 5 + 2 * num_sch + 2 * num_kpr, horizontal='center', vertical='center')
-            excel.borders(1, 1, 3, 5 + 2 * num_sch + 2 * num_kpr)
+            excel.format(1, 1, 3, last_col, horizontal='center', vertical='center')
+            excel.borders(1, 1, 3, last_col)
             
             row = 4
             for mdp_result in self.mdp_results:
@@ -728,40 +747,58 @@ class DataInfo:
                         for mdp_event in mdp_shem.events:
                             excel.set_val(row, 3, mdp_event.name)
                             excel.set_val(row, 4, f"{mdp_event.no_pa_mdp:.0f}")
-                            excel.set_val(row, 5 + num_sch + num_kpr, f"{mdp_event.with_pa_mdp:.0f}")
+                            
+                            # Заполнение данных для ПА только если включен расчет с ПА
+                            if self.dyn_with_pa:
+                                excel.set_val(row, 5 + num_sch + num_kpr, f"{mdp_event.with_pa_mdp:.0f}")
                             
                             if num_sch > 0:
                                 for idx in range(num_sch):
                                     if idx < len(mdp_event.no_pa_sechen):
                                         excel.set_val(row, 5 + idx, f"{mdp_event.no_pa_sechen[idx].value:.0f}")
-                                    if idx < len(mdp_event.with_pa_sechen):
+                                    if self.dyn_with_pa and idx < len(mdp_event.with_pa_sechen):
                                         excel.set_val(row, 6 + num_sch + num_kpr + idx, f"{mdp_event.with_pa_sechen[idx].value:.0f}")
                             
                             if num_kpr > 0:
                                 for idx in range(num_kpr):
                                     if idx < len(mdp_event.no_pa_kpr):
                                         excel.set_val(row, 5 + num_sch + idx, f"{mdp_event.no_pa_kpr[idx].value:.2f}")
-                                    if idx < len(mdp_event.with_pa_kpr):
+                                    if self.dyn_with_pa and idx < len(mdp_event.with_pa_kpr):
                                         excel.set_val(row, 6 + 2 * num_sch + num_kpr + idx, f"{mdp_event.with_pa_kpr[idx].value:.2f}")
                             
-                            excel.format(row, 3, row, 5 + 2 * num_sch + 2 * num_kpr, horizontal='center', vertical='center')
+                            # Определяем последний столбец для форматирования
+                            if self.dyn_with_pa:
+                                last_data_col = 5 + 2 * num_sch + 2 * num_kpr
+                            else:
+                                last_data_col = 4 + num_sch + num_kpr
+                            
+                            excel.format(row, 3, row, last_data_col, horizontal='center', vertical='center')
                             row += 1
                     else:
+                        # Определяем последний столбец для объединения
+                        if self.dyn_with_pa:
+                            last_data_col = 5 + 2 * num_sch + 2 * num_kpr
+                        else:
+                            last_data_col = 4 + num_sch + num_kpr
                         excel.set_val(row, 3, "Схема не балансируется")
-                        excel.merge(row, 3, row, 5 + 2 * num_sch + 2 * num_kpr, horizontal=True, vertical=True)
+                        excel.merge(row, 3, row, last_data_col, horizontal=True, vertical=True)
                         row += 1
                     
                     excel.merge(shem_start_row, 2, row - 1, 2, horizontal=True, vertical=True)
                 
                 excel.set_val(start_row, 1, mdp_result.rg_name)
                 excel.merge(start_row, 1, row - 1, 1, horizontal=True, vertical=True)
-                excel.borders(start_row, 1, row - 1, 5 + 2 * num_sch + 2 * num_kpr)
+                
+                # Определяем последний столбец для границ
+                if self.dyn_with_pa:
+                    last_data_col = 5 + 2 * num_sch + 2 * num_kpr
+                else:
+                    last_data_col = 4 + num_sch + num_kpr
+                excel.borders(start_row, 1, row - 1, last_data_col)
             
+            # Скрытие столбцов больше не нужно, так как они не создаются
             if not self.dyn_no_pa:
                 for col in range(4, 5 + num_sch + num_kpr):
-                    excel.hide_column(col)
-            if not self.dyn_with_pa:
-                for col in range(5 + num_sch + num_kpr, 6 + 2 * num_sch + 2 * num_kpr):
                     excel.hide_column(col)
         
         elif result_type == 5:
@@ -846,6 +883,8 @@ class DataInfo:
         
         # Сохранение файла
         excel_file = root_path / "Результат расчетов.xlsx"
+        # Автоматическое выравнивание столбцов по содержимому
+        excel.auto_fit_columns()
         excel.save(str(excel_file))
         
         # Удаление временных файлов

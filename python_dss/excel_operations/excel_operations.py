@@ -153,6 +153,36 @@ class ExcelOperations:
         else:
             self._worksheet.column_dimensions[col_letter].width = width
     
+    def auto_fit_columns(self, min_width: float = 8.0, max_width: float = 50.0):
+        """Автоматическое выравнивание ширины столбцов по содержимому"""
+        from openpyxl.utils import get_column_letter
+        
+        for col_idx, column in enumerate(self._worksheet.columns, start=1):
+            max_length = 0
+            col_letter = get_column_letter(col_idx)
+            
+            # Проверяем все ячейки в столбце
+            for cell in column:
+                try:
+                    if cell.value:
+                        # Получаем длину строкового представления значения
+                        cell_value = str(cell.value)
+                        # Учитываем переносы строк
+                        lines = cell_value.split('\n')
+                        max_line_length = max(len(line) for line in lines) if lines else 0
+                        max_length = max(max_length, max_line_length)
+                except:
+                    pass
+            
+            # Устанавливаем ширину с учетом минимальной и максимальной
+            if max_length > 0:
+                # Добавляем небольшой отступ
+                adjusted_width = min(max(max_length + 2, min_width), max_width)
+                self._worksheet.column_dimensions[col_letter].width = adjusted_width
+            else:
+                # Если столбец пустой, устанавливаем минимальную ширину
+                self._worksheet.column_dimensions[col_letter].width = min_width
+    
     def hide_column(self, col: int):
         """Скрытие столбца"""
         col_letter = get_column_letter(col)
