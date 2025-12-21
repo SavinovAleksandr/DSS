@@ -126,9 +126,7 @@ class MdpStabilityCalc:
             
             logger.info(f"[РЕЖИМ {rgm_idx + 1}] Начало цикла по вариантам (vrns)")
             for vrn_idx, vrn in enumerate(self._vrns):
-            mdp_shems_list = []
-            
-            for vrn in self._vrns:
+                logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}/{len(self._vrns)}] Обработка варианта: {vrn.name}")
                 mdp_shem = MdpShems(
                     sheme_name=vrn.name,
                     is_ready=False,
