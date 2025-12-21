@@ -61,7 +61,7 @@ class Config:
                 "logs_dir": "~/.stablimit/logs",
                 "cache_dir": "~/.stablimit/cache",
                 "error_reports_dir": "~/.stablimit/error_reports",
-                "rastr_template_dir": "~/RastrWIN3/SHABLON"
+                "rastr_template_dir": "~/Documents/RastrWin3/SHABLON"  # Современные версии RASTR используют Documents
             },
             "calculations": {
                 "base_angle": 1.471,
