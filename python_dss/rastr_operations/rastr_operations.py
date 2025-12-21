@@ -215,15 +215,19 @@ class RastrOperations:
                     # Пытаемся вызвать get_Z разными способами
                     try:
                         return col.get_Z(idx)
-                    except AttributeError:
+                    except AttributeError as e:
+                        # Если get_Z не найден, пробуем получить DispID через GetIDsOfNames
                         try:
-                            # Пробуем через __call__
-                            return col(idx)
-                        except:
-                            # Используем прямой доступ через COM с правильным DispID
-                            # get_Z обычно имеет DispID для свойства по умолчанию
                             import pythoncom
-                            return col._oleobj_.Invoke(pythoncom.DISPID_PROPERTYPUT, idx)
+                            # Получаем DispID для метода get_Z
+                            dispid = col._oleobj_.GetIDsOfNames(0, ("get_Z",))
+                            return col._oleobj_.Invoke(dispid[0], 0, pythoncom.DISPATCH_METHOD, 1, idx)
+                        except:
+                            # Последняя попытка - через __getitem__
+                            try:
+                                return col[idx]
+                            except:
+                                raise AttributeError(f"Не удалось вызвать get_Z для колонки {col_name}: {e}")
                 return None
             else:
                 # Проверяем, что индекс валиден
@@ -231,14 +235,19 @@ class RastrOperations:
                     raise IndexError(f"Индекс {selection_or_index} вне диапазона таблицы {table_name} (размер: {table.Size})")
                 try:
                     return col.get_Z(selection_or_index)
-                except AttributeError:
+                except AttributeError as e:
+                    # Если get_Z не найден, пробуем получить DispID через GetIDsOfNames
                     try:
-                        # Пробуем через __call__
-                        return col(selection_or_index)
-                    except:
-                        # Используем прямой доступ через COM
                         import pythoncom
-                        return col._oleobj_.Invoke(pythoncom.DISPID_PROPERTYPUT, selection_or_index)
+                        # Получаем DispID для метода get_Z
+                        dispid = col._oleobj_.GetIDsOfNames(0, ("get_Z",))
+                        return col._oleobj_.Invoke(dispid[0], 0, pythoncom.DISPATCH_METHOD, 1, selection_or_index)
+                    except:
+                        # Последняя попытка - через __getitem__
+                        try:
+                            return col[selection_or_index]
+                        except:
+                            raise AttributeError(f"Не удалось вызвать get_Z для колонки {col_name}: {e}")
         except Exception as e:
             from utils.logger import logger
             logger.error(f"Ошибка при получении значения из {table_name}.{col_name} (индекс/выборка: {selection_or_index}): {e}")
@@ -258,14 +267,19 @@ class RastrOperations:
             col = table.Cols.Item(col_name)
             try:
                 col.set_Z(index, value)
-            except AttributeError:
+            except AttributeError as e:
+                # Если set_Z не найден, пробуем получить DispID через GetIDsOfNames
                 try:
-                    # Пробуем через прямое присваивание с индексом
-                    col[index] = value
-                except:
-                    # Используем Invoke через COM с правильным DispID
                     import pythoncom
-                    col._oleobj_.Invoke(pythoncom.DISPID_PROPERTYPUT, index, value)
+                    # Получаем DispID для метода set_Z
+                    dispid = col._oleobj_.GetIDsOfNames(0, ("set_Z",))
+                    col._oleobj_.Invoke(dispid[0], 0, pythoncom.DISPATCH_METHOD, 1, index, value)
+                except:
+                    # Последняя попытка - через прямое присваивание
+                    try:
+                        col[index] = value
+                    except:
+                        raise AttributeError(f"Не удалось вызвать set_Z для колонки {col_name}: {e}")
             return True
         except Exception as e:
             from utils.logger import logger
