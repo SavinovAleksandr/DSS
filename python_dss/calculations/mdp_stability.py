@@ -486,13 +486,32 @@ class MdpStabilityCalc:
                 mdp_shems=mdp_shems_list
             ))
         
+        logger.info("Завершение всех циклов")
+        logger.info(f"Получено результатов для режимов: {len(results)}")
+        
         # Финальное обновление прогресса (100%)
+        progress += 1
+        logger.info(f"Финальное обновление прогресса: {progress}/{self.max}")
         if self._progress_callback:
-            self._progress_callback(progress)
+            try:
+                self._progress_callback(progress)
+                logger.info("Финальный progress_callback выполнен")
+            except Exception as e:
+                logger.error(f"Ошибка в финальном progress_callback: {e}")
+        else:
+            logger.warning("Финальный progress_callback не установлен")
         
         # Удаление временного файла
+        logger.info(f"Удаление временного файла: {tmp_file}")
         if tmp_file.exists():
             tmp_file.unlink()
+            logger.info("Временный файл удален")
+        else:
+            logger.warning("Временный файл не найден для удаления")
         
+        logger.info("=" * 80)
+        logger.info("КОНЕЦ МЕТОДА calc() В MdpStabilityCalc")
+        logger.info(f"Возвращаем {len(results)} результатов")
+        logger.info("=" * 80)
         return results
 
