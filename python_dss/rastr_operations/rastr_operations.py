@@ -380,18 +380,27 @@ class RastrOperations:
             
             # Устанавливаем значения с обработкой ошибок для каждой колонки отдельно
             try:
+                col_max_result_files.SetZ(0, 1)
+            except AttributeError:
+                # Fallback на set_Z для совместимости
                 col_max_result_files.set_Z(0, 1)
             except Exception as e:
                 logger.error(f"Ошибка при установке MaxResultFiles: {e}")
                 raise
             
             try:
+                col_snap_auto_load.SetZ(0, 1)
+            except AttributeError:
+                # Fallback на set_Z для совместимости
                 col_snap_auto_load.set_Z(0, 1)
             except Exception as e:
                 logger.error(f"Ошибка при установке SnapAutoLoad: {e}")
                 raise
             
             try:
+                col_snap_max_count.SetZ(0, 1)
+            except AttributeError:
+                # Fallback на set_Z для совместимости
                 col_snap_max_count.set_Z(0, 1)
             except Exception as e:
                 logger.error(f"Ошибка при установке SnapMaxCount: {e}")
