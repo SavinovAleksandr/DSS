@@ -3,6 +3,7 @@
 """
 
 import traceback
+import os
 from typing import Optional, Callable, Any
 from pathlib import Path
 import json
@@ -157,8 +158,11 @@ class ErrorHandler:
             if must_exist and not file_path.is_file():
                 return False, f"Путь не является файлом: {file_path}"
             
-            if must_exist and not file_path.is_readable():
-                return False, f"Нет доступа для чтения файла: {file_path}"
+            # Проверка доступности для чтения (используем os.access вместо несуществующего is_readable)
+            if must_exist:
+                import os
+                if not os.access(file_path, os.R_OK):
+                    return False, f"Нет доступа для чтения файла: {file_path}"
             
             return True, None
         except Exception as e:
