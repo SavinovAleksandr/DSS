@@ -293,10 +293,15 @@ class MdpStabilityCalc:
                             stagnation_count = 0
                             
                             while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable) and iteration < max_mdp_iterations:
+                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка файлов")
                                 rastr.load(str(tmp_file))
                                 rastr.load(self._vir_path)
+                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: вызов step({step_current:.2f})")
                                 step_actual = rastr.step(step_current)
+                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: step_actual={step_actual:.2f}")
+                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: вызов run_dynamic(ems=True)")
                                 dyn_result = rastr.run_dynamic(ems=True)
+                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: результат динамики: success={dyn_result.is_success}, stable={dyn_result.is_stable}")
                                 
                                 if dyn_result.is_success and dyn_result.is_stable:
                                     step_max = step_actual
