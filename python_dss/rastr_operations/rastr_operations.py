@@ -451,7 +451,14 @@ class RastrOperations:
                 table.AddRow()
             
             col_tras = table.Cols.Item("Tras")
-            original_time = col_tras.GetZ(0)
+            # Используем прямое обращение через индекс
+            try:
+                original_time = col_tras[0]
+            except (AttributeError, TypeError, IndexError):
+                try:
+                    original_time = col_tras.GetZ(0)
+                except AttributeError:
+                    original_time = col_tras.get_Z(0)
             
             self.load_template(".dfw")
             
