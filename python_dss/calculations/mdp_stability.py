@@ -278,9 +278,17 @@ class MdpStabilityCalc:
                         rastr.load_template(".dfw")
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Все файлы загружены")
                         
+                        # Получаем значение сечения ДО расчета динамики для диагностики
+                        p_before_dyn = rastr.get_val("sechen", "psech", self._selected_sch)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Значение сечения ДО run_dynamic: {p_before_dyn:.2f}")
+                        
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Вызов run_dynamic(ems=True)")
                         dyn_result = rastr.run_dynamic(ems=True)
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Результат динамики: успех={dyn_result.is_success}, устойчивость={dyn_result.is_stable}")
+                        
+                        # Получаем значение сечения ПОСЛЕ расчета динамики для диагностики
+                        p_after_dyn = rastr.get_val("sechen", "psech", self._selected_sch)
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Значение сечения ПОСЛЕ run_dynamic: {p_after_dyn:.2f} (изменение: {p_after_dyn - p_before_dyn:.2f})")
                         
                         if dyn_result.is_success and not dyn_result.is_stable:
                             p_current = rastr.get_val("sechen", "psech", self._selected_sch)
