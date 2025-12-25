@@ -69,12 +69,15 @@ class UostStabilityCalc:
         
         progress = 0
         results = []
+        new_node_counter = 1  # ИСПРАВЛЕНО: Счетчик для новых узлов (как num2 в C#)
         
         logger.info(f"Начало расчета остаточного напряжения: {len(self._rgms)} режимов, {len(self._vrns)} вариантов, {len(self._scns)} сценариев")
         
         for rgm_idx, rgm in enumerate(self._rgms):
             logger.info(f"[РЕЖИМ {rgm_idx + 1}/{len(self._rgms)}] Загрузка режима: {Path(rgm.name).stem}")
             uost_shems_list = []
+            # ИСПРАВЛЕНО: Сбрасываем счетчик для каждого режима (как в C# num2 инициализируется один раз)
+            new_node_counter = 1
             
             for vrn_idx, vrn in enumerate(self._vrns):
                 logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}/{len(self._vrns)}] Вариант: {vrn.name}")
@@ -143,14 +146,8 @@ class UostStabilityCalc:
                                 continue
                             time_start = rastr.get_val("DFWAutoActionScn", "TimeStart", action_id)
                             
-                            # Создание нового узла для расчета
-                            new_node_id = rastr.add_table_row("node")
-                            # ИСПРАВЛЕНО: Убеждаемся, что new_node_id - это int
-                            if not isinstance(new_node_id, int):
-                                new_node_id = int(new_node_id)
-                            rastr.set_val("node", "ny", new_node_id, len(actions) + 1)
-                            u_nom = rastr.get_val("node", "uhom", f"ny={node_kz}")
-                            rastr.set_val("node", "uhom", new_node_id, u_nom)
+                            # ИСПРАВЛЕНО: Изменяем ObjectKey на new_node_counter (как в C# строке 89)
+                            rastr.set_val("DFWAutoActionScn", "ObjectKey", action_id, new_node_counter)
                             
                             obj_prop = rastr.get_val("DFWAutoActionScn", "ObjectProp", action_id)
                             if obj_prop == "r":
@@ -182,18 +179,20 @@ class UostStabilityCalc:
                         continue
                     
                     # Получение параметров линии
-                    r_line = rastr.get_val("vetv", "r", f"ip={ip} & iq={iq} & np={np}")
-                    x_line = rastr.get_val("vetv", "x", f"ip={ip} & iq={iq} & np={np}")
-                    b_line = rastr.get_val("vetv", "b", f"ip={ip} & iq={iq} & np={np}")
+                    # ИСПРАВЛЕНО: Используем формат с пробелами как в C# (строки 109-114)
+                    r_line = rastr.get_val("vetv", "r", f"ip = {ip} & iq = {iq} & np = {np}")
+                    x_line = rastr.get_val("vetv", "x", f"ip = {ip} & iq = {iq} & np = {np}")
+                    b_line = rastr.get_val("vetv", "b", f"ip = {ip} & iq = {iq} & np = {np}")
                     
                     # Отключение исходной линии и добавление новой
-                    rastr.set_val_by_selection("vetv", "sta", f"ip={ip} & iq={iq} & np={np}", 1)
-                    rastr.set_val_by_selection("node", "bsh", f"ny={ip}", b_line / 2.0)
-                    rastr.set_val_by_selection("node", "bsh", f"ny={iq}", b_line / 2.0)
+                    rastr.set_val_by_selection("vetv", "sta", f"ip = {ip} & iq = {iq} & np = {np}", 1)
+                    rastr.set_val_by_selection("node", "bsh", f"ny = {ip}", b_line / 2.0)
+                    rastr.set_val_by_selection("node", "bsh", f"ny = {iq}", b_line / 2.0)
                     
+                    # ИСПРАВЛЕНО: Создаем новый узел с номером new_node_counter (как в C# строке 115-117)
                     new_node_id = rastr.add_table_row("node")
-                    rastr.set_val("node", "ny", new_node_id, len(actions) + 1)
-                    rastr.set_val("node", "uhom", new_node_id, rastr.get_val("node", "uhom", f"ny={node_kz}"))
+                    rastr.set_val("node", "ny", new_node_id, new_node_counter)
+                    rastr.set_val("node", "uhom", new_node_id, rastr.get_val("node", "uhom", f"ny = {node_kz}"))
                     
                     # Добавление новых ветвей
                     branch1_id = rastr.add_table_row("vetv")
@@ -207,9 +206,10 @@ class UostStabilityCalc:
                     if not isinstance(new_node_id, int):
                         new_node_id = int(new_node_id)
                     
+                    # ИСПРАВЛЕНО: Используем new_node_counter вместо new_node_id для ветвей (как в C# строках 120-123)
                     rastr.set_val("vetv", "ip", branch1_id, ip)
-                    rastr.set_val("vetv", "iq", branch1_id, new_node_id)
-                    rastr.set_val("vetv", "ip", branch2_id, new_node_id)
+                    rastr.set_val("vetv", "iq", branch1_id, new_node_counter)
+                    rastr.set_val("vetv", "ip", branch2_id, new_node_counter)
                     rastr.set_val("vetv", "iq", branch2_id, iq)
                     
                     rastr.rgm()
@@ -316,16 +316,18 @@ class UostStabilityCalc:
                     
                     dyn_result5 = rastr.run_dynamic(ems=False, max_time=time_start + 0.02)
                     if dyn_result5.is_success and dyn_result5.is_stable:
-                        points_ip = rastr.get_points_from_exit_file("node", "vras", f"ny={ip}")
-                        points_iq = rastr.get_points_from_exit_file("node", "vras", f"ny={iq}")
+                        # ИСПРАВЛЕНО: Используем формат с пробелами и точное сравнение (как в C# строках 210-215)
+                        points_ip = rastr.get_points_from_exit_file("node", "vras", f"ny = {ip}")
+                        points_iq = rastr.get_points_from_exit_file("node", "vras", f"ny = {iq}")
                         
+                        # ИСПРАВЛЕНО: Точное сравнение как в C# (k.X == time_start)
                         for point in points_ip:
-                            if abs(point.x - time_start) < 0.001:
+                            if point.x == time_start:
                                 begin_uost = point.y
                                 break
                         
                         for point in points_iq:
-                            if abs(point.x - time_start) < 0.001:
+                            if point.x == time_start:
                                 end_uost = point.y
                                 break
                     
@@ -354,6 +356,9 @@ class UostStabilityCalc:
                     progress += 1
                     if self._progress_callback:
                         self._progress_callback(progress)
+                    
+                    # ИСПРАВЛЕНО: Увеличиваем счетчик для следующего сценария (как num2 в C#)
+                    new_node_counter += 1
                 
                 logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}] Обработано событий: {len(events_list)}")
                 
@@ -371,18 +376,5 @@ class UostStabilityCalc:
             ))
         
         logger.info(f"Расчет остаточного напряжения завершен. Всего результатов: {len(results)}")
-        return results
-                
-                uost_shems_list.append(UostShems(
-                    sheme_name=vrn.name,
-                    is_stable=is_stable,
-                    events=events_list
-                ))
-            
-            results.append(UostResults(
-                rg_name=Path(rgm.name).stem,
-                uost_shems=uost_shems_list
-            ))
-        
         return results
 
