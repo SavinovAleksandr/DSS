@@ -487,6 +487,13 @@ class UostStabilityCalc:
                                 f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Бинарный поиск, итерация {iteration}: результат устойчивости={dyn_result3.is_stable}"
                             )
 
+                        # ИСПРАВЛЕНО: Обновляем l_stable/l_unstable после последнего расчета, если цикл завершился
+                        if dyn_result3.is_success:
+                            if dyn_result3.is_stable:
+                                l_stable = l_current
+                            else:
+                                l_unstable = l_current
+
                         if iteration >= max_iterations:
                             logger.warning(
                                 f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Достигнуто максимальное количество итераций бинарного поиска ({max_iterations})"
