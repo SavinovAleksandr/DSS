@@ -450,12 +450,21 @@ class UostStabilityCalc:
                             # ИСПРАВЛЕНО: Используем формулу из C# (строка 146)
                             # num19 += Math.Abs(num18 - num17) * 0.5 * (double)(((dynamicResult.IsStable && dynamicResult3.IsStable) || (!dynamicResult.IsStable && !dynamicResult3.IsStable)) ? 1 : (-1));
                             # Если знаки устойчивости совпадают (оба устойчивы ИЛИ оба неустойчивы), то добавляем, иначе вычитаем
-                            sign_multiplier = 1.0 if (
-                                (dyn_result1.is_stable and dyn_result3.is_stable) or
-                                (not dyn_result1.is_stable and not dyn_result3.is_stable)
-                            ) else -1.0
-                            
-                            l_current += abs(l_unstable - l_stable) * 0.5 * sign_multiplier
+                            sign_multiplier = (
+                                1.0
+                                if (
+                                    (dyn_result1.is_stable and dyn_result3.is_stable)
+                                    or (
+                                        not dyn_result1.is_stable
+                                        and not dyn_result3.is_stable
+                                    )
+                                )
+                                else -1.0
+                            )
+
+                            l_current += (
+                                abs(l_unstable - l_stable) * 0.5 * sign_multiplier
+                            )
                             # Ограничиваем диапазоном 0-100
                             l_current = max(0.0, min(100.0, l_current))
                             distance = l_current
