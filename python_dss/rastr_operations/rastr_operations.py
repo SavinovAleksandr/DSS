@@ -412,60 +412,87 @@ class RastrOperations:
             )
             raise
 
-    def set_val(self, table_name: str, col_name: str, index: int, value: Any) -> bool:
-        """Установка значения в таблицу"""
+    def set_val(self, table_name: str, col_name: str, index_or_selection: Union[int, str], value: Any) -> bool:
+        """Установка значения в таблицу (поддерживает индекс или строку выборки, как в C#)"""
         try:
             from utils.logger import logger
 
             table = self._rastr.Tables.Item(table_name)
-
-            # ИСПРАВЛЕНО: Преобразуем index в int, если это строка
-            if not isinstance(index, int):
-                try:
-                    index = int(index)
-                except (ValueError, TypeError) as e:
-                    logger.error(
-                        f"Некорректный тип индекса для {table_name}.{col_name}: {index} (тип: {type(index)}), ошибка: {e}"
-                    )
-                    raise TypeError(
-                        f"Индекс должен быть int, получен {type(index).__name__}: {index}"
-                    )
-
-            # Проверяем, что индекс валиден
-            table_size = table.Size
-            if not isinstance(table_size, int):
-                try:
-                    table_size = int(table_size)
-                except (ValueError, TypeError):
-                    table_size = 0
-
-            if index < 0 or index >= table_size:
-                raise IndexError(
-                    f"Индекс {index} вне диапазона таблицы {table_name} (размер: {table.Size})"
-                )
-
             col = table.Cols.Item(col_name)
-            try:
-                # Способ 1: SetZ(index, value) - метод (как в рабочей версии)
-                col.SetZ(index, value)
-            except AttributeError:
-                try:
-                    # Способ 2: прямое присваивание через индекс
-                    col[index] = value
-                except (AttributeError, TypeError, IndexError):
+
+            # ИСПРАВЛЕНО: Поддержка строки выборки (как в C# setVal с selection)
+            if isinstance(index_or_selection, str):
+                # Используем строку выборки
+                table.SetSel(index_or_selection)
+                idx = table.FindNextSel(-1)
+                # ИСПРАВЛЕНО: Преобразуем idx в int, если это строка
+                if not isinstance(idx, int) and idx is not None:
                     try:
-                        # Способ 3: set_Z (маленькая буква)
-                        col.set_Z(index, value)
-                    except AttributeError as e:
-                        raise AttributeError(
-                            f"Не удалось установить значение для колонки {col_name}[{index}] = {value}: {e}"
+                        idx = int(idx)
+                    except (ValueError, TypeError):
+                        idx = -1
+                
+                if idx != -1:
+                    try:
+                        col.SetZ(idx, value)
+                        return True
+                    except AttributeError:
+                        try:
+                            col.set_Z(idx, value)
+                            return True
+                        except AttributeError as e:
+                            logger.error(f"Не удалось установить значение для {table_name}.{col_name} (выборка: {index_or_selection}): {e}")
+                            return False
+                return False
+            else:
+                # Используем индекс
+                index = index_or_selection
+                # ИСПРАВЛЕНО: Преобразуем index в int, если это строка
+                if not isinstance(index, int):
+                    try:
+                        index = int(index)
+                    except (ValueError, TypeError) as e:
+                        logger.error(
+                            f"Некорректный тип индекса для {table_name}.{col_name}: {index} (тип: {type(index)}), ошибка: {e}"
                         )
-            return True
+                        raise TypeError(
+                            f"Индекс должен быть int, получен {type(index).__name__}: {index}"
+                        )
+
+                # Проверяем, что индекс валиден
+                table_size = table.Size
+                if not isinstance(table_size, int):
+                    try:
+                        table_size = int(table_size)
+                    except (ValueError, TypeError):
+                        table_size = 0
+
+                if index < 0 or index >= table_size:
+                    raise IndexError(
+                        f"Индекс {index} вне диапазона таблицы {table_name} (размер: {table_size})"
+                    )
+
+                try:
+                    # Способ 1: SetZ(index, value) - метод (как в рабочей версии)
+                    col.SetZ(index, value)
+                except AttributeError:
+                    try:
+                        # Способ 2: прямое присваивание через индекс
+                        col[index] = value
+                    except (AttributeError, TypeError, IndexError):
+                        try:
+                            # Способ 3: set_Z (маленькая буква)
+                            col.set_Z(index, value)
+                        except AttributeError as e:
+                            raise AttributeError(
+                                f"Не удалось установить значение для колонки {col_name}[{index}] = {value}: {e}"
+                            )
+                return True
         except Exception as e:
             from utils.logger import logger
 
             logger.error(
-                f"Ошибка при установке значения в {table_name}.{col_name}[{index}] = {value}: {e}"
+                f"Ошибка при установке значения в {table_name}.{col_name}[{index_or_selection}] = {value}: {e}"
             )
             raise
 

@@ -180,14 +180,30 @@ class UostStabilityCalc:
                     
                     # Получение параметров линии
                     # ИСПРАВЛЕНО: Используем формат с пробелами как в C# (строки 109-114)
-                    r_line = rastr.get_val("vetv", "r", f"ip = {ip} & iq = {iq} & np = {np}")
-                    x_line = rastr.get_val("vetv", "x", f"ip = {ip} & iq = {iq} & np = {np}")
-                    b_line = rastr.get_val("vetv", "b", f"ip = {ip} & iq = {iq} & np = {np}")
+                    logger.debug(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Получение параметров линии: ip={ip}, iq={iq}, np={np}")
+                    try:
+                        r_line = rastr.get_val("vetv", "r", f"ip = {ip} & iq = {iq} & np = {np}")
+                        x_line = rastr.get_val("vetv", "x", f"ip = {ip} & iq = {iq} & np = {np}")
+                        b_line = rastr.get_val("vetv", "b", f"ip = {ip} & iq = {iq} & np = {np}")
+                        logger.debug(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Параметры линии получены: r={r_line}, x={x_line}, b={b_line}")
+                    except Exception as e:
+                        logger.error(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Ошибка при получении параметров линии: {e}")
+                        continue
                     
                     # Отключение исходной линии и добавление новой
-                    rastr.set_val_by_selection("vetv", "sta", f"ip = {ip} & iq = {iq} & np = {np}", 1)
-                    rastr.set_val_by_selection("node", "bsh", f"ny = {ip}", b_line / 2.0)
-                    rastr.set_val_by_selection("node", "bsh", f"ny = {iq}", b_line / 2.0)
+                    # ИСПРАВЛЕНО: В C# используется setVal с selection (строка 112-114)
+                    logger.debug(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Отключение линии и установка bsh")
+                    try:
+                        result1 = rastr.set_val("vetv", "sta", f"ip = {ip} & iq = {iq} & np = {np}", 1)
+                        result2 = rastr.set_val("node", "bsh", f"ny = {ip}", b_line / 2.0)
+                        result3 = rastr.set_val("node", "bsh", f"ny = {iq}", b_line / 2.0)
+                        logger.debug(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Результаты set_val: vetv.sta={result1}, node.bsh(ip)={result2}, node.bsh(iq)={result3}")
+                        if not result1 or not result2 or not result3:
+                            logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не удалось установить значения через set_val, пропуск")
+                            continue
+                    except Exception as e:
+                        logger.error(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Ошибка при установке значений: {e}")
+                        continue
                     
                     # ИСПРАВЛЕНО: Создаем новый узел с номером new_node_counter (как в C# строке 115-117)
                     new_node_id = rastr.add_table_row("node")
