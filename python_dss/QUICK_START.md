@@ -59,6 +59,6 @@ python main.py
 
 - Windows (для работы с RASTR)
 - Установленный ПК RUSTab
-- Python 3.8+
+- Python 3.9+
 - Все зависимости из requirements.txt
 

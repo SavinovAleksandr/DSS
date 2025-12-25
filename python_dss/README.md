@@ -38,7 +38,7 @@ python_dss/
 
 ## Зависимости
 
-- Python 3.8+
+- Python 3.9+
 - openpyxl - работа с Excel (кроссплатформенная)
 - matplotlib, plotly - построение графиков (кроссплатформенные)
 - customtkinter - современный UI (кроссплатформенный)

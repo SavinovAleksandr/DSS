@@ -15,7 +15,7 @@ code .
 
 1. Нажмите `Cmd+Shift+P` (macOS) или `Ctrl+Shift+P` (Windows/Linux)
 2. Введите: `Python: Select Interpreter`
-3. Выберите нужный интерпретатор Python (рекомендуется Python 3.8+)
+3. Выберите нужный интерпретатор Python (рекомендуется Python 3.9+)
 
 ### 3. Установить расширения (рекомендуется)
 

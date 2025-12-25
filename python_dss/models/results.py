@@ -158,6 +158,7 @@ class UostEvents:
     def __init__(self, name: str = "", begin_node: int = 0, end_node: int = 0,
                  np: int = 0, distance: float = 100.0,
                  begin_uost: float = -1.0, end_uost: float = -1.0,
+                 begin_shunt: float = -1.0, end_shunt: float = -1.0,
                  values: Optional[List[Values]] = None):
         self.name = name
         self.begin_node = begin_node
@@ -166,6 +167,8 @@ class UostEvents:
         self.distance = distance
         self.begin_uost = begin_uost
         self.end_uost = end_uost
+        self.begin_shunt = begin_shunt  # Значение шунта КЗ для узла начала
+        self.end_shunt = end_shunt  # Значение шунта КЗ для узла конца
         self.values = values or []
 
 

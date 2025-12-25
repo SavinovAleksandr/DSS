@@ -133,7 +133,7 @@ python main.py
 ### Требования
 - **Windows** - для работы с RASTR (COM интерфейс)
 - **ПК RUSTab** - должен быть установлен
-- **Python 3.8+** - версия Python
+- **Python 3.9+** - версия Python
 - **Все зависимости** из requirements.txt
 
 ### Ограничения
