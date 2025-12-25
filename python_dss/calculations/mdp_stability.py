@@ -313,17 +313,24 @@ class MdpStabilityCalc:
                             prev_step_current = None
                             stagnation_count = 0
                             
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Начало итерационного поиска МДП: p_current={p_current:.2f}, p_stable={p_stable:.2f}, precision={precision:.2f}, step_min={step_min:.2f}, step_max={step_max:.2f}")
+                            
                             while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable) and iteration < max_mdp_iterations:
-                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка файлов")
-                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка базового файла: {tmp_file_base}")
+                                logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка базового файла: {tmp_file_base}")
                                 rastr.load(str(tmp_file_base))
                                 rastr.load(self._vir_path)
-                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: вызов step({step_current:.2f})")
+                                logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: вызов step({step_current:.2f})")
                                 step_actual = rastr.step(step_current)
-                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: step_actual={step_actual:.2f}")
-                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: вызов run_dynamic(ems=True)")
+                                logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: step_actual={step_actual:.2f}")
+                                
+                                # ИСПРАВЛЕНО: Загружаем сценарий ПЕРЕД run_dynamic (как в C# строках 152-155)
+                                logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка сценария: {scn.name}")
+                                rastr.load(scn.name)
+                                rastr.load_template(".dfw")
+                                
+                                logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: вызов run_dynamic(ems=True)")
                                 dyn_result = rastr.run_dynamic(ems=True)
-                                logger.debug(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: результат динамики: success={dyn_result.is_success}, stable={dyn_result.is_stable}")
+                                logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: результат динамики: success={dyn_result.is_success}, stable={dyn_result.is_stable}")
                                 
                                 if dyn_result.is_success and dyn_result.is_stable:
                                     step_max = step_actual
