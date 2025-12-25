@@ -301,6 +301,9 @@ class MdpStabilityCalc:
                         p_after_dyn = rastr.get_val("sechen", "psech", self._selected_sch)
                         logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Значение сечения ПОСЛЕ run_dynamic: {p_after_dyn:.2f} (изменение: {p_after_dyn - p_before_dyn:.2f})")
                         
+                        # ДИАГНОСТИКА: Проверка условий для начала итераций
+                        logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Проверка условий: is_success={dyn_result.is_success}, is_stable={dyn_result.is_stable}, условие для итераций={dyn_result.is_success and not dyn_result.is_stable}")
+                        
                         if dyn_result.is_success and not dyn_result.is_stable:
                             p_current = rastr.get_val("sechen", "psech", self._selected_sch)
                             p_stable = mdp_shem.p_start
