@@ -4,12 +4,12 @@
 
 Логи хранятся в директории:
 ```
-%USERPROFILE%\.stablimit\logs\
+%USERPROFILE%\Documents\StabLimit2\log\
 ```
 
 Полный путь обычно:
 ```
-C:\Users\<ВашеИмя>\.stablimit\logs\
+C:\Users\<ВашеИмя>\Documents\StabLimit2\log\
 ```
 
 ## Файлы логов
@@ -31,19 +31,19 @@ C:\Users\<ВашеИмя>\.stablimit\logs\
 
 ### Способ 1: Через проводник Windows
 1. Нажмите `Win + R`
-2. Введите: `%USERPROFILE%\.stablimit\logs`
+2. Введите: `%USERPROFILE%\Documents\StabLimit2\log`
 3. Нажмите Enter
 
 ### Способ 2: Через командную строку
 ```cmd
-cd %USERPROFILE%\.stablimit\logs
+cd %USERPROFILE%\Documents\StabLimit2\log
 dir
 ```
 
 ### Способ 3: Прямой путь
 Откройте проводник и перейдите по пути:
 ```
-C:\Users\<ВашеИмя>\.stablimit\logs
+C:\Users\<ВашеИмя>\Documents\StabLimit2\log
 ```
 
 ## Самые важные файлы для диагностики

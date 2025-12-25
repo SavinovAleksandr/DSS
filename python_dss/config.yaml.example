@@ -7,10 +7,10 @@ paths:
   license_file: "C:/ПАРУС 6/licence.txt"
   
   # Директория для сохранения результатов расчетов
-  results_dir: "~/StabLimit"
+  results_dir: "~/Documents/StabLimit2"
   
   # Директория для логов
-  logs_dir: "~/.stablimit/logs"
+  logs_dir: "~/Documents/StabLimit2/log"
   
   # Директория для кэша
   cache_dir: "~/.stablimit/cache"
