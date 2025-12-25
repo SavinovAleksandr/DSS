@@ -262,7 +262,7 @@ class UostStabilityCalc:
                         # Бинарный поиск границы
                         l_stable = l_start if dyn_result1.is_stable else l_end
                         l_unstable = l_end if dyn_result1.is_stable else l_start
-                        l_current = abs(l_stable - l_unstable) * 0.5
+                        l_current = l_stable + abs(l_unstable - l_stable) * 0.5
                         
                         rastr.set_line_for_uost_calc(branch1_id, branch2_id, r_line, x_line, l_current)
                         dyn_result3 = rastr.run_dynamic(ems=True)
@@ -273,8 +273,7 @@ class UostStabilityCalc:
                             else:
                                 l_unstable = l_current
                             
-                            l_current += abs(l_unstable - l_stable) * 0.5 * (1 if ((dyn_result1.is_stable and dyn_result3.is_stable) or 
-                                                                                  (not dyn_result1.is_stable and not dyn_result3.is_stable)) else -1)
+                            l_current = l_stable + abs(l_unstable - l_stable) * 0.5
                             distance = l_current
                             
                             rastr.set_line_for_uost_calc(branch1_id, branch2_id, r_line, x_line, l_current)
@@ -384,56 +383,52 @@ class UostStabilityCalc:
                             
                             logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Уточнение завершено: z_mod_old={z_mod_old:.4f}, z_mod_new={z_mod_new:.4f}, устойчивость={dyn_result4.is_stable}, итераций={iteration2}")
                             
-                            # ДОБАВЛЕНО: Сохраняем финальное значение шунта
+                            # ИСПРАВЛЕНО: Сохраняем финальное значение шунта в момент нахождения на границе устойчивости
                             z_mod_final = z_mod_new
+                            
+                            # ИСПРАВЛЕНО: Извлекаем значение шунта из RASTR в момент нахождения на границе устойчивости
+                            begin_shunt = -1.0
+                            end_shunt = -1.0
+                            try:
+                                if x_id > 0:
+                                    # Получаем значение X шунта из действия
+                                    x_shunt_value = rastr.get_val("DFWAutoActionScn", "Formula", x_id)
+                                    if r_shunt == -1.0:
+                                        # Только X (реактивное сопротивление)
+                                        begin_shunt = float(x_shunt_value) if x_shunt_value else -1.0
+                                        end_shunt = begin_shunt  # Одно значение для обоих узлов
+                                    else:
+                                        # X и R (полное сопротивление)
+                                        if r_id > 0:
+                                            r_shunt_value = rastr.get_val("DFWAutoActionScn", "Formula", r_id)
+                                            x_val = float(x_shunt_value) if x_shunt_value else 0.0
+                                            r_val = float(r_shunt_value) if r_shunt_value else 0.0
+                                            # Модуль комплексного сопротивления
+                                            z_mod_from_rastr = math.sqrt(r_val ** 2 + x_val ** 2)
+                                            begin_shunt = z_mod_from_rastr
+                                            end_shunt = z_mod_from_rastr
+                                        else:
+                                            begin_shunt = float(x_shunt_value) if x_shunt_value else -1.0
+                                            end_shunt = begin_shunt
+                            except Exception as e:
+                                logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не удалось получить значение шунта из RASTR: {e}")
+                                # Используем z_mod_final как резервное значение
+                                begin_shunt = z_mod_final
+                                end_shunt = z_mod_final
                             
                             # ИСПРАВЛЕНО: Если система все еще неустойчива после всех итераций, продолжаем расчет с текущими значениями
                             if not dyn_result4.is_success:
                                 logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Расчет динамики не успешен после уточнения, продолжаем с distance=-1.0")
                             elif not dyn_result4.is_stable:
                                 logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Система все еще неустойчива после уточнения, продолжаем расчет")
+                    else:
+                        # Если не было уточнения границы (оба расчета были устойчивы или неустойчивы с самого начала)
+                        begin_shunt = -1.0
+                        end_shunt = -1.0
                     
                     # Получение остаточных напряжений
                     begin_uost = -1.0
                     end_uost = -1.0
-                    
-                    # ДОБАВЛЕНО: Получение значения шунта КЗ из RASTR после финального расчета
-                    # Шунт применяется к узлу КЗ (node_kz), но мы получаем его значение для обоих узлов
-                    begin_shunt = -1.0
-                    end_shunt = -1.0
-                    
-                    # Получаем значение шунта из RASTR (из действия в сценарии)
-                    try:
-                        if x_id > 0:
-                            # Получаем значение X шунта из действия
-                            x_shunt_value = rastr.get_val("DFWAutoActionScn", "Formula", x_id)
-                            if r_shunt == -1.0:
-                                # Только X (реактивное сопротивление)
-                                begin_shunt = float(x_shunt_value) if x_shunt_value else -1.0
-                                end_shunt = begin_shunt  # Одно значение для обоих узлов
-                            else:
-                                # X и R (полное сопротивление)
-                                if r_id > 0:
-                                    r_shunt_value = rastr.get_val("DFWAutoActionScn", "Formula", r_id)
-                                    x_val = float(x_shunt_value) if x_shunt_value else 0.0
-                                    r_val = float(r_shunt_value) if r_shunt_value else 0.0
-                                    # Модуль комплексного сопротивления
-                                    z_mod_from_rastr = math.sqrt(r_val ** 2 + x_val ** 2)
-                                    begin_shunt = z_mod_from_rastr
-                                    end_shunt = z_mod_from_rastr
-                                else:
-                                    begin_shunt = float(x_shunt_value) if x_shunt_value else -1.0
-                                    end_shunt = begin_shunt
-                    except Exception as e:
-                        logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не удалось получить значение шунта из RASTR: {e}")
-                        # Используем z_mod_final как резервное значение (сохраненное после уточнения)
-                        if 'z_mod_final' in locals() and z_mod_final > 0:
-                            begin_shunt = z_mod_final
-                            end_shunt = z_mod_final
-                        else:
-                            # Если z_mod_final не определен, используем начальное значение
-                            begin_shunt = z_mod
-                            end_shunt = z_mod
                     
                     dyn_result5 = rastr.run_dynamic(ems=False, max_time=time_start + 0.02)
                     if dyn_result5.is_success and dyn_result5.is_stable:

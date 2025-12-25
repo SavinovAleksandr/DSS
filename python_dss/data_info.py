@@ -900,7 +900,8 @@ class DataInfo:
                             elif uost_event.distance == 100.0:
                                 excel.set_val(row, 7, "<0")
                             else:
-                                excel.set_val(row, 7, f"{uost_event.distance * 100.0:.2f}")
+                                # ИСПРАВЛЕНО: distance уже в процентах (0.1-99.9), не нужно умножать на 100
+                                excel.set_val(row, 7, f"{uost_event.distance:.2f}")
                             
                             excel.set_val(row, 8, f"{uost_event.begin_uost:.2f}")
                             excel.set_val(row, 9, f"{uost_event.end_uost:.2f}")
