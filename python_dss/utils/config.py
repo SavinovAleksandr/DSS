@@ -57,8 +57,8 @@ class Config:
         return {
             "paths": {
                 "license_file": "C:/ПАРУС 6/licence.txt",
-                "results_dir": "~/StabLimit",
-                "logs_dir": "~/.stablimit/logs",
+                "results_dir": "~/Documents/StabLimit2",
+                "logs_dir": "~/Documents/StabLimit2/log",
                 "cache_dir": "~/.stablimit/cache",
                 "error_reports_dir": "~/.stablimit/error_reports",
                 "rastr_template_dir": "~/Documents/RastrWin3/SHABLON"  # Современные версии RASTR используют Documents
