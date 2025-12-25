@@ -278,6 +278,36 @@ class UostStabilityCalc:
                             
                             rastr.set_line_for_uost_calc(branch1_id, branch2_id, r_line, x_line, l_current)
                             dyn_result3 = rastr.run_dynamic(ems=True)
+                        
+                        # ДОБАВЛЕНО: Извлекаем значение шунта после бинарного поиска границы
+                        begin_shunt = -1.0
+                        end_shunt = -1.0
+                        try:
+                            if x_id > 0:
+                                # Получаем значение X шунта из действия
+                                x_shunt_value = rastr.get_val("DFWAutoActionScn", "Formula", x_id)
+                                if r_shunt == -1.0:
+                                    # Только X (реактивное сопротивление)
+                                    begin_shunt = float(x_shunt_value) if x_shunt_value else -1.0
+                                    end_shunt = begin_shunt  # Одно значение для обоих узлов
+                                else:
+                                    # X и R (полное сопротивление)
+                                    if r_id > 0:
+                                        r_shunt_value = rastr.get_val("DFWAutoActionScn", "Formula", r_id)
+                                        x_val = float(x_shunt_value) if x_shunt_value else 0.0
+                                        r_val = float(r_shunt_value) if r_shunt_value else 0.0
+                                        # Модуль комплексного сопротивления
+                                        z_mod_from_rastr = math.sqrt(r_val ** 2 + x_val ** 2)
+                                        begin_shunt = z_mod_from_rastr
+                                        end_shunt = z_mod_from_rastr
+                                    else:
+                                        begin_shunt = float(x_shunt_value) if x_shunt_value else -1.0
+                                        end_shunt = begin_shunt
+                        except Exception as e:
+                            logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не удалось получить значение шунта из RASTR после бинарного поиска: {e}")
+                            # Используем начальное значение
+                            begin_shunt = z_mod
+                            end_shunt = z_mod
                     elif (dyn_result1.is_success and not dyn_result1.is_stable and 
                           dyn_result2.is_success and not dyn_result2.is_stable):
                         # Оба неустойчивы - увеличиваем шунт

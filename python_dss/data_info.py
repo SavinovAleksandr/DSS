@@ -473,16 +473,25 @@ class DataInfo:
                 logger.warning(f"Папка результатов не существует: {folder_path}")
                 return
             
+            # ИСПРАВЛЕНО: Используем более надежный метод открытия папки на Windows
             if platform.system() == "Windows":
-                os.startfile(str(folder))
+                # Используем explorer.exe для более надежного открытия
+                subprocess.Popen(f'explorer.exe "{str(folder)}"', shell=True)
             elif platform.system() == "Darwin":  # macOS
-                subprocess.run(["open", str(folder)])
+                subprocess.run(["open", str(folder)], check=True)
             else:  # Linux
-                subprocess.run(["xdg-open", str(folder)])
+                subprocess.run(["xdg-open", str(folder)], check=True)
             
             logger.info(f"Открыта папка с результатами: {folder_path}")
         except Exception as e:
             logger.error(f"Не удалось открыть папку с результатами: {e}")
+            # Попытка альтернативного метода на Windows
+            if platform.system() == "Windows":
+                try:
+                    os.startfile(str(folder))
+                    logger.info(f"Папка открыта альтернативным методом: {folder_path}")
+                except Exception as e2:
+                    logger.error(f"Альтернативный метод также не сработал: {e2}")
     
     def _clear_all_results(self):
         """Очистка всех результатов"""
