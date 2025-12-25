@@ -133,23 +133,34 @@ class Logger:
         
         # Лог операций пользователя (отдельный файл)
         audit_log_file = self.log_dir / 'audit.log'
-        audit_handler = logging.handlers.RotatingFileHandler(
-            audit_log_file,
-            maxBytes=10 * 1024 * 1024,  # 10 MB
-            backupCount=5,
-            encoding='utf-8'
-        )
-        audit_handler.setLevel(logging.INFO)
-        audit_format = logging.Formatter(
-            '%(asctime)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        audit_handler.setFormatter(audit_format)
-        self.audit_logger = logging.getLogger('StabLimit.Audit')
-        self.audit_logger.addHandler(audit_handler)
-        self.audit_logger.setLevel(logging.INFO)
+        try:
+            audit_handler = logging.handlers.RotatingFileHandler(
+                str(audit_log_file),  # Явно преобразуем в строку для Windows
+                maxBytes=10 * 1024 * 1024,  # 10 MB
+                backupCount=5,
+                encoding='utf-8'
+            )
+            audit_handler.setLevel(logging.INFO)
+            audit_format = logging.Formatter(
+                '%(asctime)s - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
+            audit_handler.setFormatter(audit_format)
+            self.audit_logger = logging.getLogger('StabLimit.Audit')
+            self.audit_logger.addHandler(audit_handler)
+            self.audit_logger.setLevel(logging.INFO)
+        except Exception as e:
+            print(f"[WARNING] Не удалось создать обработчик аудита для {audit_log_file.absolute()}: {e}")
+            # Создаем audit_logger без файлового обработчика
+            self.audit_logger = logging.getLogger('StabLimit.Audit')
+            self.audit_logger.setLevel(logging.INFO)
         
-        self.logger.info("Система логирования инициализирована")
+        # Логируем путь к логам после инициализации
+        try:
+            self.logger.info(f"Система логирования инициализирована. Логи сохраняются в: {self.log_dir.absolute()}")
+        except:
+            # Если logger еще не работает, используем print
+            print(f"[INFO] Система логирования инициализирована. Логи сохраняются в: {self.log_dir.absolute()}")
     
     def debug(self, message: str, *args, **kwargs):
         """Логирование на уровне DEBUG"""
