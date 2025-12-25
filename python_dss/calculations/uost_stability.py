@@ -505,19 +505,51 @@ class UostStabilityCalc:
 
                         # ДОБАВЛЕНО: Извлекаем значения r и x для обеих ветвей после бинарного поиска
                         # Эти значения соответствуют найденным остаточным напряжениям
+                        # ВАЖНО: branch1_id идет от ip к новому узлу (где КЗ), branch2_id идет от нового узла к iq
+                        # Если node_kz == ip, то begin_r/begin_x должны быть почти нулевыми
+                        # Если node_kz == iq, то end_r/end_x должны быть почти нулевыми
                         begin_r = -1.0
                         begin_x = -1.0
                         end_r = -1.0
                         end_x = -1.0
                         try:
-                            # Получаем r и x для первой ветви (начало линии)
+                            # Получаем r и x для первой ветви (от ip к новому узлу, где КЗ)
                             begin_r = rastr.get_val("vetv", "r", branch1_id)
                             begin_x = rastr.get_val("vetv", "x", branch1_id)
-                            # Получаем r и x для второй ветви (конец линии)
+                            # Получаем r и x для второй ветви (от нового узла к iq)
                             end_r = rastr.get_val("vetv", "r", branch2_id)
                             end_x = rastr.get_val("vetv", "x", branch2_id)
                             logger.info(
                                 f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Параметры линии после бинарного поиска: begin_r={begin_r:.6f}, begin_x={begin_x:.6f}, end_r={end_r:.6f}, end_x={end_x:.6f}"
+                            )
+                            logger.info(
+                                f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Структура ветвей: branch1_id (ip={ip} -> new_node={new_node_counter}), branch2_id (new_node={new_node_counter} -> iq={iq}), node_kz={node_kz}, distance={distance:.2f}%"
+                            )
+                            # ВАЖНО: Параметры begin_r/begin_x соответствуют ветви от ip к точке КЗ
+                            # Параметры end_r/end_x соответствуют ветви от точки КЗ к iq
+                            # Если node_kz == ip, то КЗ в узле начала, и begin_r/begin_x должны быть почти нулевыми
+                            # Если node_kz == iq, то КЗ в узле конца, и end_r/end_x должны быть почти нулевыми
+                            # ПРОВЕРКА: Если node_kz == ip, то begin_r/begin_x должны быть почти нулевыми
+                            if ip_int == node_kz_int:
+                                if begin_r > 1.0 or begin_x > 1.0:
+                                    logger.warning(
+                                        f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] ⚠️ ВНИМАНИЕ: node_kz==ip, но begin_r={begin_r:.6f}, begin_x={begin_x:.6f} (ожидаются почти нулевые значения)"
+                                    )
+                            # ПРОВЕРКА: Если node_kz == iq, то end_r/end_x должны быть почти нулевыми
+                            iq_int = int(iq) if not isinstance(iq, int) else iq
+                            if iq_int == node_kz_int:
+                                if end_r > 1.0 or end_x > 1.0:
+                                    logger.warning(
+                                        f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] ⚠️ ВНИМАНИЕ: node_kz==iq, но end_r={end_r:.6f}, end_x={end_x:.6f} (ожидаются почти нулевые значения)"
+                                    )
+                            # ВАЖНО: Параметры для узла, где происходит КЗ (node_kz)
+                            # Если node_kz == ip, то параметры для узла ip должны быть begin_r/begin_x
+                            # Если node_kz == iq, то параметры для узла iq должны быть end_r/end_x
+                            # Если КЗ происходит на линии (не в узле), то параметры распределяются пропорционально distance
+                            logger.info(
+                                f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Параметры для узла КЗ (node_kz={node_kz}): "
+                                f"если node_kz==ip ({ip}), то для узла {ip} используются begin_r={begin_r:.6f}, begin_x={begin_x:.6f}; "
+                                f"если node_kz==iq ({iq}), то для узла {iq} используются end_r={end_r:.6f}, end_x={end_x:.6f}"
                             )
                         except Exception as e:
                             logger.warning(
