@@ -159,6 +159,8 @@ class UostEvents:
                  np: int = 0, distance: float = 100.0,
                  begin_uost: float = -1.0, end_uost: float = -1.0,
                  begin_shunt: float = -1.0, end_shunt: float = -1.0,
+                 begin_r: float = -1.0, begin_x: float = -1.0,
+                 end_r: float = -1.0, end_x: float = -1.0,
                  values: Optional[List[Values]] = None):
         self.name = name
         self.begin_node = begin_node
@@ -169,6 +171,10 @@ class UostEvents:
         self.end_uost = end_uost
         self.begin_shunt = begin_shunt  # Значение шунта КЗ для узла начала
         self.end_shunt = end_shunt  # Значение шунта КЗ для узла конца
+        self.begin_r = begin_r  # Сопротивление начала линии
+        self.begin_x = begin_x  # Реактивное сопротивление начала линии
+        self.end_r = end_r  # Сопротивление конца линии
+        self.end_x = end_x  # Реактивное сопротивление конца линии
         self.values = values or []
 
 

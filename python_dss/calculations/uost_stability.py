@@ -145,6 +145,11 @@ class UostStabilityCalc:
                     x_shunt = -1.0
                     r_id = 0
                     x_id = 0
+                    # Инициализация параметров линии для вывода в Excel
+                    begin_r = -1.0
+                    begin_x = -1.0
+                    end_r = -1.0
+                    end_x = -1.0
 
                     actions = rastr.selection("DFWAutoActionScn")
                     logger.debug(
@@ -491,6 +496,27 @@ class UostStabilityCalc:
                             f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Бинарный поиск завершен: distance={distance:.2f}, l_stable={l_stable:.2f}, l_unstable={l_unstable:.2f}"
                         )
 
+                        # ДОБАВЛЕНО: Извлекаем значения r и x для обеих ветвей после бинарного поиска
+                        # Эти значения соответствуют найденным остаточным напряжениям
+                        begin_r = -1.0
+                        begin_x = -1.0
+                        end_r = -1.0
+                        end_x = -1.0
+                        try:
+                            # Получаем r и x для первой ветви (начало линии)
+                            begin_r = rastr.get_val("vetv", "r", branch1_id)
+                            begin_x = rastr.get_val("vetv", "x", branch1_id)
+                            # Получаем r и x для второй ветви (конец линии)
+                            end_r = rastr.get_val("vetv", "r", branch2_id)
+                            end_x = rastr.get_val("vetv", "x", branch2_id)
+                            logger.info(
+                                f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Параметры линии после бинарного поиска: begin_r={begin_r:.6f}, begin_x={begin_x:.6f}, end_r={end_r:.6f}, end_x={end_x:.6f}"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не удалось получить параметры линии после бинарного поиска: {e}"
+                            )
+
                         # ДОБАВЛЕНО: Извлекаем значение шунта после бинарного поиска границы
                         logger.info(
                             f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Извлечение значения шунта КЗ после бинарного поиска: x_id={x_id}, r_id={r_id}, r_shunt={r_shunt}"
@@ -756,6 +782,26 @@ class UostStabilityCalc:
                             # ИСПРАВЛЕНО: Сохраняем финальное значение шунта в момент нахождения на границе устойчивости
                             z_mod_final = z_mod_new
 
+                            # ДОБАВЛЕНО: Извлекаем значения r и x для обеих ветвей после уточнения границы
+                            begin_r = -1.0
+                            begin_x = -1.0
+                            end_r = -1.0
+                            end_x = -1.0
+                            try:
+                                # Получаем r и x для первой ветви (начало линии)
+                                begin_r = rastr.get_val("vetv", "r", branch1_id)
+                                begin_x = rastr.get_val("vetv", "x", branch1_id)
+                                # Получаем r и x для второй ветви (конец линии)
+                                end_r = rastr.get_val("vetv", "r", branch2_id)
+                                end_x = rastr.get_val("vetv", "x", branch2_id)
+                                logger.info(
+                                    f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Параметры линии после уточнения: begin_r={begin_r:.6f}, begin_x={begin_x:.6f}, end_r={end_r:.6f}, end_x={end_x:.6f}"
+                                )
+                            except Exception as e:
+                                logger.warning(
+                                    f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не удалось получить параметры линии после уточнения: {e}"
+                                )
+
                             # ИСПРАВЛЕНО: Извлекаем значение шунта из RASTR в момент нахождения на границе устойчивости
                             logger.info(
                                 f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Извлечение значения шунта КЗ после уточнения границы: x_id={x_id}, r_id={r_id}, r_shunt={r_shunt}, z_mod_final={z_mod_final:.6f}"
@@ -853,6 +899,19 @@ class UostStabilityCalc:
                         )
                         begin_shunt = z_mod
                         end_shunt = z_mod
+                        # Получаем текущие значения r и x для обеих ветвей
+                        try:
+                            begin_r = rastr.get_val("vetv", "r", branch1_id)
+                            begin_x = rastr.get_val("vetv", "x", branch1_id)
+                            end_r = rastr.get_val("vetv", "r", branch2_id)
+                            end_x = rastr.get_val("vetv", "x", branch2_id)
+                            logger.info(
+                                f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Параметры линии (без бинарного поиска): begin_r={begin_r:.6f}, begin_x={begin_x:.6f}, end_r={end_r:.6f}, end_x={end_x:.6f}"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не удалось получить параметры линии: {e}"
+                            )
 
                     # Получение остаточных напряжений
                     logger.info(
@@ -942,6 +1001,10 @@ class UostStabilityCalc:
                             end_uost=end_uost,
                             begin_shunt=begin_shunt,
                             end_shunt=end_shunt,
+                            begin_r=begin_r,
+                            begin_x=begin_x,
+                            end_r=end_r,
+                            end_x=end_x,
                             values=values_list,
                         )
                     )

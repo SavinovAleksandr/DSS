@@ -874,21 +874,28 @@ class DataInfo:
             excel.width(9, 15)
             excel.merge(1, 8, 1, 9, horizontal=True, vertical=True)
             
-            excel.set_val(1, 10, "Шунт КЗ, Ом")
+            excel.set_val(1, 10, "R, Ом")
             excel.merge(1, 10, 1, 11, horizontal=True, vertical=True)
             excel.set_val(2, 10, "Узел начала")
             excel.width(10, 15)
             excel.set_val(2, 11, "Узел конца")
             excel.width(11, 15)
             
-            if num_kpr > 0:
-                excel.set_val(1, 12, "Контролируемые величины")
-                for idx, kpr in enumerate(self.kpr_inf):
-                    excel.set_val(2, 12 + idx, kpr.name)
-                excel.merge(1, 12, 1, 12 + num_kpr - 1, horizontal=True, vertical=True)
+            excel.set_val(1, 12, "X, Ом")
+            excel.merge(1, 12, 1, 13, horizontal=True, vertical=True)
+            excel.set_val(2, 12, "Узел начала")
+            excel.width(12, 15)
+            excel.set_val(2, 13, "Узел конца")
+            excel.width(13, 15)
             
-            excel.format(1, 1, 2, 11 + num_kpr, horizontal='center', vertical='center')
-            excel.borders(1, 1, 2, 11 + num_kpr)
+            if num_kpr > 0:
+                excel.set_val(1, 14, "Контролируемые величины")
+                for idx, kpr in enumerate(self.kpr_inf):
+                    excel.set_val(2, 14 + idx, kpr.name)
+                excel.merge(1, 14, 1, 14 + num_kpr - 1, horizontal=True, vertical=True)
+            
+            excel.format(1, 1, 2, 13 + num_kpr, horizontal='center', vertical='center')
+            excel.borders(1, 1, 2, 13 + num_kpr)
             
             row = 3
             for uost_result in self.uost_results:
@@ -915,26 +922,37 @@ class DataInfo:
                             excel.set_val(row, 8, f"{uost_event.begin_uost:.2f}")
                             excel.set_val(row, 9, f"{uost_event.end_uost:.2f}")
                             
-                            # ДОБАВЛЕНО: Значения шунта КЗ для узлов начала и конца
-                            if uost_event.begin_shunt >= 0:
-                                excel.set_val(row, 10, f"{uost_event.begin_shunt:.4f}")
+                            # ДОБАВЛЕНО: Значения R и X для узлов начала и конца линии
+                            # Эти значения соответствуют найденным остаточным напряжениям
+                            if uost_event.begin_r >= 0:
+                                excel.set_val(row, 10, f"{uost_event.begin_r:.6f}")
                             else:
                                 excel.set_val(row, 10, "-")
                             
-                            if uost_event.end_shunt >= 0:
-                                excel.set_val(row, 11, f"{uost_event.end_shunt:.4f}")
+                            if uost_event.end_r >= 0:
+                                excel.set_val(row, 11, f"{uost_event.end_r:.6f}")
                             else:
                                 excel.set_val(row, 11, "-")
                             
+                            if uost_event.begin_x >= 0:
+                                excel.set_val(row, 12, f"{uost_event.begin_x:.6f}")
+                            else:
+                                excel.set_val(row, 12, "-")
+                            
+                            if uost_event.end_x >= 0:
+                                excel.set_val(row, 13, f"{uost_event.end_x:.6f}")
+                            else:
+                                excel.set_val(row, 13, "-")
+                            
                             if num_kpr > 0:
                                 for idx, value in enumerate(uost_event.values):
-                                    excel.set_val(row, 12 + idx, value.value)
+                                    excel.set_val(row, 14 + idx, value.value)
                             
-                            excel.format(row, 3, row, 11 + num_kpr, horizontal='center', vertical='center')
+                            excel.format(row, 3, row, 13 + num_kpr, horizontal='center', vertical='center')
                             row += 1
                     else:
                         excel.set_val(row, 3, "Схема не балансируется")
-                        excel.merge(row, 3, row, 11 + num_kpr, horizontal=True, vertical=True)
+                        excel.merge(row, 3, row, 13 + num_kpr, horizontal=True, vertical=True)
                         row += 1
                     
                     excel.merge(shem_start_row, 2, row - 1, 2, horizontal=True, vertical=True)
