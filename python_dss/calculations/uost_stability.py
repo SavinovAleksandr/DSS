@@ -65,16 +65,23 @@ class UostStabilityCalc:
     
     def calc(self) -> List[UostResults]:
         """Выполнение расчета"""
+        from utils.logger import logger
+        
         progress = 0
         results = []
         
-        for rgm in self._rgms:
+        logger.info(f"Начало расчета остаточного напряжения: {len(self._rgms)} режимов, {len(self._vrns)} вариантов, {len(self._scns)} сценариев")
+        
+        for rgm_idx, rgm in enumerate(self._rgms):
+            logger.info(f"[РЕЖИМ {rgm_idx + 1}/{len(self._rgms)}] Загрузка режима: {Path(rgm.name).stem}")
             uost_shems_list = []
             
-            for vrn in self._vrns:
+            for vrn_idx, vrn in enumerate(self._vrns):
+                logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}/{len(self._vrns)}] Вариант: {vrn.name}")
                 events_list = []
                 
-                for scn in self._scns:
+                for scn_idx, scn in enumerate(self._scns):
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}/{len(self._scns)}] Начало обработки сценария: {Path(scn.name).stem}")
                     rastr = RastrOperations()
                     rastr.load(rgm.name)
                     rastr.dyn_settings()
@@ -83,9 +90,11 @@ class UostStabilityCalc:
                     is_stable = (rastr.rgm() if vrn.id == -1 else rastr.apply_variant(vrn.num, self._rems_path))
                     
                     if not is_stable:
+                        logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Режим неустойчив после применения варианта, пропуск")
                         continue
                     
                     rastr.load(scn.name)
+                    logger.debug(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Сценарий загружен")
                     
                     # Извлечение информации о КЗ из сценария
                     distance = 100.0
@@ -98,6 +107,12 @@ class UostStabilityCalc:
                     x_id = 0
                     
                     actions = rastr.selection("DFWAutoActionScn")
+                    logger.debug(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Найдено действий в сценарии: {len(actions)}")
+                    
+                    if not actions:
+                        logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Сценарий не содержит действий (DFWAutoActionScn пуст), пропуск")
+                        continue
+                    
                     for action_id in actions:
                         # ИСПРАВЛЕНО: Убеждаемся, что action_id - это int
                         if not isinstance(action_id, int):
@@ -146,17 +161,24 @@ class UostStabilityCalc:
                                 x_id = action_id
                     
                     # Парсинг ключа линии
+                    if not line_key:
+                        logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Ключ линии не найден в сценарии, пропуск")
+                        continue
+                    
+                    logger.debug(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Ключ линии: {line_key}, node_kz: {node_kz}")
+                    
                     line_parts = line_key.split(",")
                     if len(line_parts) >= 3:
                         try:
                             ip = int(line_parts[0].strip())
                             iq = int(line_parts[1].strip())
                             np = int(line_parts[2].strip())
+                            logger.debug(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Параметры линии: ip={ip}, iq={iq}, np={np}")
                         except (ValueError, TypeError) as e:
-                            from utils.logger import logger
-                            logger.error(f"Ошибка при парсинге ключа линии '{line_key}': {e}")
+                            logger.error(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Ошибка при парсинге ключа линии '{line_key}': {e}")
                             continue
                     else:
+                        logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Некорректный формат ключа линии '{line_key}' (ожидается 3 части через запятую), пропуск")
                         continue
                     
                     # Получение параметров линии
@@ -204,12 +226,16 @@ class UostStabilityCalc:
                     l_end = 100.0 - l_start
                     
                     # Первый расчет
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Начало первого динамического расчета (l_start={l_start:.2f})")
                     rastr.set_line_for_uost_calc(branch1_id, branch2_id, r_line, x_line, l_start)
                     dyn_result1 = rastr.run_dynamic(ems=True)
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Первый расчет завершен: успех={dyn_result1.is_success}, устойчивость={dyn_result1.is_stable}")
                     
                     # Второй расчет
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Начало второго динамического расчета (l_end={l_end:.2f})")
                     rastr.set_line_for_uost_calc(branch1_id, branch2_id, r_line, x_line, l_end)
                     dyn_result2 = rastr.run_dynamic(ems=True)
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Второй расчет завершен: успех={dyn_result2.is_success}, устойчивость={dyn_result2.is_stable}")
                     
                     # Определение границы устойчивости
                     if (dyn_result1.is_success and dyn_result2.is_success and 
@@ -312,6 +338,8 @@ class UostStabilityCalc:
                             value=rastr.get_val(kpr.table, kpr.col, kpr.selection)
                         ))
                     
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Расчет завершен: distance={distance:.2f}, begin_uost={begin_uost:.2f}, end_uost={end_uost:.2f}")
+                    
                     events_list.append(UostEvents(
                         name=Path(scn.name).stem,
                         begin_node=ip,
@@ -326,6 +354,24 @@ class UostStabilityCalc:
                     progress += 1
                     if self._progress_callback:
                         self._progress_callback(progress)
+                
+                logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}] Обработано событий: {len(events_list)}")
+                
+                uost_shems_list.append(UostShems(
+                    sheme_name=vrn.name,
+                    is_stable=is_stable,
+                    events=events_list
+                ))
+            
+            logger.info(f"[РЕЖИМ {rgm_idx + 1}] Обработано вариантов: {len(uost_shems_list)}")
+            
+            results.append(UostResults(
+                rg_name=Path(rgm.name).stem,
+                uost_shems=uost_shems_list
+            ))
+        
+        logger.info(f"Расчет остаточного напряжения завершен. Всего результатов: {len(results)}")
+        return results
                 
                 uost_shems_list.append(UostShems(
                     sheme_name=vrn.name,
