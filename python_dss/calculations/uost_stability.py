@@ -231,8 +231,10 @@ class UostStabilityCalc:
                     rastr.rgm()
                     
                     # Расчет угла и модуля шунта
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Расчет параметров шунта КЗ: r_shunt={r_shunt:.6f}, x_shunt={x_shunt:.6f}, r_id={r_id}, x_id={x_id}")
                     z_angle = (math.pi / 2.0) if r_shunt == -1.0 else math.atan(x_shunt / r_shunt)
                     z_mod = math.sqrt((r_shunt ** 2 if r_shunt != -1.0 else 0) + x_shunt ** 2)
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Параметры шунта рассчитаны: z_angle={z_angle:.6f} рад ({math.degrees(z_angle):.2f}°), z_mod={z_mod:.6f} Ом")
                     
                     # ДОБАВЛЕНО: Инициализация переменной для финального значения шунта
                     z_mod_final = z_mod  # Начальное значение
@@ -260,51 +262,79 @@ class UostStabilityCalc:
                     if (dyn_result1.is_success and dyn_result2.is_success and 
                         (dyn_result1.is_stable != dyn_result2.is_stable)):
                         # Бинарный поиск границы
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Начало бинарного поиска границы устойчивости")
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Исходные значения: l_start={l_start:.2f} (устойчивость={dyn_result1.is_stable}), l_end={l_end:.2f} (устойчивость={dyn_result2.is_stable})")
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Начальное значение шунта: z_mod={z_mod:.6f}, z_angle={z_angle:.6f}, r_shunt={r_shunt:.6f}, x_shunt={x_shunt:.6f}, r_id={r_id}, x_id={x_id}")
+                        
                         l_stable = l_start if dyn_result1.is_stable else l_end
                         l_unstable = l_end if dyn_result1.is_stable else l_start
                         l_current = l_stable + abs(l_unstable - l_stable) * 0.5
                         
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Бинарный поиск: l_stable={l_stable:.2f}, l_unstable={l_unstable:.2f}, l_current={l_current:.2f}")
+                        
+                        iteration = 0
+                        max_iterations = 50
                         rastr.set_line_for_uost_calc(branch1_id, branch2_id, r_line, x_line, l_current)
                         dyn_result3 = rastr.run_dynamic(ems=True)
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Бинарный поиск, итерация {iteration}: l_current={l_current:.2f}, устойчивость={dyn_result3.is_stable}")
                         
-                        while dyn_result3.is_success and (not dyn_result3.is_stable or abs(l_stable - l_unstable) > 0.5):
+                        while dyn_result3.is_success and (not dyn_result3.is_stable or abs(l_stable - l_unstable) > 0.5) and iteration < max_iterations:
                             if dyn_result3.is_stable:
                                 l_stable = l_current
                             else:
                                 l_unstable = l_current
                             
-                            l_current = l_stable + abs(l_unstable - l_stable) * 0.5
+                            # ИСПРАВЛЕНО: Ограничиваем l_current диапазоном 0-100
+                            l_current = max(0.0, min(100.0, l_stable + abs(l_unstable - l_stable) * 0.5))
                             distance = l_current
+                            
+                            iteration += 1
+                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Бинарный поиск, итерация {iteration}: l_stable={l_stable:.2f}, l_unstable={l_unstable:.2f}, l_current={l_current:.2f}, distance={distance:.2f}")
                             
                             rastr.set_line_for_uost_calc(branch1_id, branch2_id, r_line, x_line, l_current)
                             dyn_result3 = rastr.run_dynamic(ems=True)
+                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Бинарный поиск, итерация {iteration}: результат устойчивости={dyn_result3.is_stable}")
+                        
+                        if iteration >= max_iterations:
+                            logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Достигнуто максимальное количество итераций бинарного поиска ({max_iterations})")
+                        
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Бинарный поиск завершен: distance={distance:.2f}, l_stable={l_stable:.2f}, l_unstable={l_unstable:.2f}")
                         
                         # ДОБАВЛЕНО: Извлекаем значение шунта после бинарного поиска границы
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Извлечение значения шунта КЗ после бинарного поиска: x_id={x_id}, r_id={r_id}, r_shunt={r_shunt}")
                         begin_shunt = -1.0
                         end_shunt = -1.0
                         try:
                             if x_id > 0:
                                 # Получаем значение X шунта из действия
                                 x_shunt_value = rastr.get_val("DFWAutoActionScn", "Formula", x_id)
+                                logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Получено значение X шунта из RASTR: x_shunt_value={x_shunt_value} (тип: {type(x_shunt_value)})")
                                 if r_shunt == -1.0:
                                     # Только X (реактивное сопротивление)
                                     begin_shunt = float(x_shunt_value) if x_shunt_value else -1.0
                                     end_shunt = begin_shunt  # Одно значение для обоих узлов
+                                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Шунт (только X): begin_shunt={begin_shunt:.6f}, end_shunt={end_shunt:.6f}")
                                 else:
                                     # X и R (полное сопротивление)
                                     if r_id > 0:
                                         r_shunt_value = rastr.get_val("DFWAutoActionScn", "Formula", r_id)
+                                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Получено значение R шунта из RASTR: r_shunt_value={r_shunt_value} (тип: {type(r_shunt_value)})")
                                         x_val = float(x_shunt_value) if x_shunt_value else 0.0
                                         r_val = float(r_shunt_value) if r_shunt_value else 0.0
                                         # Модуль комплексного сопротивления
                                         z_mod_from_rastr = math.sqrt(r_val ** 2 + x_val ** 2)
                                         begin_shunt = z_mod_from_rastr
                                         end_shunt = z_mod_from_rastr
+                                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Шунт (X и R): x_val={x_val:.6f}, r_val={r_val:.6f}, z_mod_from_rastr={z_mod_from_rastr:.6f}, begin_shunt={begin_shunt:.6f}, end_shunt={end_shunt:.6f}")
                                     else:
                                         begin_shunt = float(x_shunt_value) if x_shunt_value else -1.0
                                         end_shunt = begin_shunt
+                                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Шунт (только X, r_id=0): begin_shunt={begin_shunt:.6f}, end_shunt={end_shunt:.6f}")
+                            else:
+                                logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] x_id={x_id}, не удалось извлечь значение шунта (x_id <= 0)")
                         except Exception as e:
                             logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не удалось получить значение шунта из RASTR после бинарного поиска: {e}")
+                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Используем начальное значение z_mod={z_mod:.6f} как fallback")
                             # Используем начальное значение
                             begin_shunt = z_mod
                             end_shunt = z_mod
@@ -417,31 +447,40 @@ class UostStabilityCalc:
                             z_mod_final = z_mod_new
                             
                             # ИСПРАВЛЕНО: Извлекаем значение шунта из RASTR в момент нахождения на границе устойчивости
+                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Извлечение значения шунта КЗ после уточнения границы: x_id={x_id}, r_id={r_id}, r_shunt={r_shunt}, z_mod_final={z_mod_final:.6f}")
                             begin_shunt = -1.0
                             end_shunt = -1.0
                             try:
                                 if x_id > 0:
                                     # Получаем значение X шунта из действия
                                     x_shunt_value = rastr.get_val("DFWAutoActionScn", "Formula", x_id)
+                                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Получено значение X шунта из RASTR после уточнения: x_shunt_value={x_shunt_value} (тип: {type(x_shunt_value)})")
                                     if r_shunt == -1.0:
                                         # Только X (реактивное сопротивление)
                                         begin_shunt = float(x_shunt_value) if x_shunt_value else -1.0
                                         end_shunt = begin_shunt  # Одно значение для обоих узлов
+                                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Шунт после уточнения (только X): begin_shunt={begin_shunt:.6f}, end_shunt={end_shunt:.6f}")
                                     else:
                                         # X и R (полное сопротивление)
                                         if r_id > 0:
                                             r_shunt_value = rastr.get_val("DFWAutoActionScn", "Formula", r_id)
+                                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Получено значение R шунта из RASTR после уточнения: r_shunt_value={r_shunt_value} (тип: {type(r_shunt_value)})")
                                             x_val = float(x_shunt_value) if x_shunt_value else 0.0
                                             r_val = float(r_shunt_value) if r_shunt_value else 0.0
                                             # Модуль комплексного сопротивления
                                             z_mod_from_rastr = math.sqrt(r_val ** 2 + x_val ** 2)
                                             begin_shunt = z_mod_from_rastr
                                             end_shunt = z_mod_from_rastr
+                                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Шунт после уточнения (X и R): x_val={x_val:.6f}, r_val={r_val:.6f}, z_mod_from_rastr={z_mod_from_rastr:.6f}, begin_shunt={begin_shunt:.6f}, end_shunt={end_shunt:.6f}")
                                         else:
                                             begin_shunt = float(x_shunt_value) if x_shunt_value else -1.0
                                             end_shunt = begin_shunt
+                                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Шунт после уточнения (только X, r_id=0): begin_shunt={begin_shunt:.6f}, end_shunt={end_shunt:.6f}")
+                                else:
+                                    logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] x_id={x_id}, не удалось извлечь значение шунта после уточнения (x_id <= 0)")
                             except Exception as e:
-                                logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не удалось получить значение шунта из RASTR: {e}")
+                                logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не удалось получить значение шунта из RASTR после уточнения: {e}")
+                                logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Используем z_mod_final={z_mod_final:.6f} как fallback")
                                 # Используем z_mod_final как резервное значение
                                 begin_shunt = z_mod_final
                                 end_shunt = z_mod_final
@@ -457,25 +496,40 @@ class UostStabilityCalc:
                         end_shunt = -1.0
                     
                     # Получение остаточных напряжений
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Начало получения остаточных напряжений: time_start={time_start:.6f}, ip={ip}, iq={iq}")
                     begin_uost = -1.0
                     end_uost = -1.0
                     
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Запуск финального динамического расчета для получения остаточных напряжений (ems=False, max_time={time_start + 0.02:.6f})")
                     dyn_result5 = rastr.run_dynamic(ems=False, max_time=time_start + 0.02)
+                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Финальный расчет завершен: успех={dyn_result5.is_success}, устойчивость={dyn_result5.is_stable}")
+                    
                     if dyn_result5.is_success and dyn_result5.is_stable:
                         # ИСПРАВЛЕНО: Используем формат с пробелами и точное сравнение (как в C# строках 210-215)
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Извлечение точек из exit файла для узлов ip={ip} и iq={iq}")
                         points_ip = rastr.get_points_from_exit_file("node", "vras", f"ny = {ip}")
                         points_iq = rastr.get_points_from_exit_file("node", "vras", f"ny = {iq}")
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Получено точек для ip: {len(points_ip)}, для iq: {len(points_iq)}")
                         
                         # ИСПРАВЛЕНО: Точное сравнение как в C# (k.X == time_start)
                         for point in points_ip:
                             if point.x == time_start:
                                 begin_uost = point.y
+                                logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Найдено остаточное напряжение для узла ip={ip}: begin_uost={begin_uost:.2f} (время={point.x:.6f})")
                                 break
                         
                         for point in points_iq:
                             if point.x == time_start:
                                 end_uost = point.y
+                                logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Найдено остаточное напряжение для узла iq={iq}: end_uost={end_uost:.2f} (время={point.x:.6f})")
                                 break
+                        
+                        if begin_uost == -1.0:
+                            logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не найдено остаточное напряжение для узла ip={ip} в момент времени {time_start:.6f}")
+                        if end_uost == -1.0:
+                            logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не найдено остаточное напряжение для узла iq={iq} в момент времени {time_start:.6f}")
+                    else:
+                        logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Финальный расчет не успешен или неустойчив, остаточные напряжения не получены")
                     
                     # Сбор контролируемых величин
                     values_list = []
