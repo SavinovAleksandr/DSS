@@ -416,7 +416,9 @@ class UostStabilityCalc:
 
                         l_stable = l_start if dyn_result1.is_stable else l_end
                         l_unstable = l_end if dyn_result1.is_stable else l_start
-                        l_current = l_stable + abs(l_unstable - l_stable) * 0.5
+                        # ИСПРАВЛЕНО: В C# используется Math.Abs(num17 - num18) * 0.5 (строка 133)
+                        # Это половина разницы, а не среднее
+                        l_current = abs(l_stable - l_unstable) * 0.5
 
                         logger.info(
                             f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Бинарный поиск: l_stable={l_stable:.2f}, l_unstable={l_unstable:.2f}, l_current={l_current:.2f}"
@@ -445,11 +447,17 @@ class UostStabilityCalc:
                             else:
                                 l_unstable = l_current
 
-                            # ИСПРАВЛЕНО: Ограничиваем l_current диапазоном 0-100
-                            l_current = max(
-                                0.0,
-                                min(100.0, l_stable + abs(l_unstable - l_stable) * 0.5),
-                            )
+                            # ИСПРАВЛЕНО: Используем формулу из C# (строка 146)
+                            # num19 += Math.Abs(num18 - num17) * 0.5 * (double)(((dynamicResult.IsStable && dynamicResult3.IsStable) || (!dynamicResult.IsStable && !dynamicResult3.IsStable)) ? 1 : (-1));
+                            # Если знаки устойчивости совпадают (оба устойчивы ИЛИ оба неустойчивы), то добавляем, иначе вычитаем
+                            sign_multiplier = 1.0 if (
+                                (dyn_result1.is_stable and dyn_result3.is_stable) or
+                                (not dyn_result1.is_stable and not dyn_result3.is_stable)
+                            ) else -1.0
+                            
+                            l_current += abs(l_unstable - l_stable) * 0.5 * sign_multiplier
+                            # Ограничиваем диапазоном 0-100
+                            l_current = max(0.0, min(100.0, l_current))
                             distance = l_current
 
                             iteration += 1
@@ -831,8 +839,11 @@ class UostStabilityCalc:
                                 )
                     else:
                         # Если не было уточнения границы (оба расчета были устойчивы или неустойчивы с самого начала)
-                        begin_shunt = -1.0
-                        end_shunt = -1.0
+                        logger.info(
+                            f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Не было бинарного поиска или уточнения границы. Используем начальное значение шунта: z_mod={z_mod:.6f}"
+                        )
+                        begin_shunt = z_mod
+                        end_shunt = z_mod
 
                     # Получение остаточных напряжений
                     logger.info(
