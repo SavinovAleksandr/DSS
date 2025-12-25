@@ -315,6 +315,8 @@ class MdpStabilityCalc:
                             
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Начало итерационного поиска МДП: p_current={p_current:.2f}, p_stable={p_stable:.2f}, precision={precision:.2f}, step_min={step_min:.2f}, step_max={step_max:.2f}")
                             
+                            # ИСПРАВЛЕНО: В C# сценарий загружается ДО цикла (строка 140), в цикле НЕ перезагружается (строки 152-155)
+                            # Сценарий уже загружен выше (строка 281), поэтому в цикле загружаем только базовый файл и VIR
                             while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable) and iteration < max_mdp_iterations:
                                 logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка базового файла: {tmp_file_base}")
                                 rastr.load(str(tmp_file_base))
@@ -323,7 +325,8 @@ class MdpStabilityCalc:
                                 step_actual = rastr.step(step_current)
                                 logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: step_actual={step_actual:.2f}")
                                 
-                                # ИСПРАВЛЕНО: Загружаем сценарий ПЕРЕД run_dynamic (как в C# строках 152-155)
+                                # ИСПРАВЛЕНО: В C# сценарий НЕ загружается в цикле (строка 155 - только RunDynamic)
+                                # Но нужно загрузить сценарий, так как load(tmp_file_base) сбрасывает состояние
                                 logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка сценария: {scn.name}")
                                 rastr.load(scn.name)
                                 rastr.load_template(".dfw")
