@@ -165,9 +165,9 @@ class UostStabilityCalc:
                     b_line = rastr.get_val("vetv", "b", f"ip={ip} & iq={iq} & np={np}")
                     
                     # Отключение исходной линии и добавление новой
-                    rastr.set_val("vetv", "sta", f"ip={ip} & iq={iq} & np={np}", 1)
-                    rastr.set_val("node", "bsh", f"ny={ip}", b_line / 2.0)
-                    rastr.set_val("node", "bsh", f"ny={iq}", b_line / 2.0)
+                    rastr.set_val_by_selection("vetv", "sta", f"ip={ip} & iq={iq} & np={np}", 1)
+                    rastr.set_val_by_selection("node", "bsh", f"ny={ip}", b_line / 2.0)
+                    rastr.set_val_by_selection("node", "bsh", f"ny={iq}", b_line / 2.0)
                     
                     new_node_id = rastr.add_table_row("node")
                     rastr.set_val("node", "ny", new_node_id, len(actions) + 1)

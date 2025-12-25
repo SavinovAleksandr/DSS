@@ -298,7 +298,7 @@ class RastrOperations:
                 idx = int(idx)
             except (ValueError, TypeError):
                 idx = -1
-        
+
         while idx != -1:
             result.append(int(idx))  # Убеждаемся, что добавляем int
             idx = table.FindNextSel(idx)
@@ -334,7 +334,7 @@ class RastrOperations:
                         idx = int(idx)
                     except (ValueError, TypeError):
                         idx = -1
-                
+
                 if idx != -1:
                     # Пытаемся получить значение разными способами
                     try:
@@ -364,9 +364,14 @@ class RastrOperations:
                         selection_or_index = int(selection_or_index)
                     except (ValueError, TypeError) as e:
                         from utils.logger import logger
-                        logger.error(f"Некорректный тип индекса для {table_name}.{col_name}: {selection_or_index} (тип: {type(selection_or_index)}), ошибка: {e}")
-                        raise TypeError(f"Индекс должен быть int, получен {type(selection_or_index).__name__}: {selection_or_index}")
-                
+
+                        logger.error(
+                            f"Некорректный тип индекса для {table_name}.{col_name}: {selection_or_index} (тип: {type(selection_or_index)}), ошибка: {e}"
+                        )
+                        raise TypeError(
+                            f"Индекс должен быть int, получен {type(selection_or_index).__name__}: {selection_or_index}"
+                        )
+
                 # Проверяем, что индекс валиден
                 table_size = table.Size
                 if not isinstance(table_size, int):
@@ -374,7 +379,7 @@ class RastrOperations:
                         table_size = int(table_size)
                     except (ValueError, TypeError):
                         table_size = 0
-                
+
                 if selection_or_index < 0 or selection_or_index >= table_size:
                     raise IndexError(
                         f"Индекс {selection_or_index} вне диапазона таблицы {table_name} (размер: {table_size})"
@@ -475,7 +480,7 @@ class RastrOperations:
             col = table.Cols.Item(col_name)
             table.SetSel(selection)
             idx = table.FindNextSel(-1)
-            
+
             # ИСПРАВЛЕНО: Преобразуем idx в int, если это строка
             if not isinstance(idx, int) and idx is not None:
                 try:
@@ -1033,7 +1038,7 @@ class RastrOperations:
 
         points = []
         idx = table.FindNextSel(-1)
-        
+
         # ИСПРАВЛЕНО: Преобразуем idx в int, если это строка
         if not isinstance(idx, int) and idx is not None:
             try:
