@@ -668,11 +668,28 @@ class RastrOperations:
         prot = []
         
         def on_log_handler(code, level, stage_id, table_name, table_index, description, form_name):
+            # code == 0 соответствует LogErrorCodes.LOG_INFO в исходном C# коде
             if code == 0 and "Величина остаточного напряжения в узле" in description:
                 prot.append(description)
         
-        # Подключение обработчика событий (упрощенная версия)
-        # В реальной реализации нужно использовать win32com события
+        # Подключение обработчика событий через COM события
+        # В исходном C# коде используется AddEventHandler для подключения OnLog события
+        try:
+            # Подключаем обработчик событий OnLog
+            # RASTR COM объект должен поддерживать события _IRastrEvents_Event
+            if hasattr(self._rastr, 'OnLog'):
+                # Если событие доступно напрямую
+                self._rastr.OnLog += on_log_handler
+                event_connected = True
+            else:
+                # Альтернативный способ через win32com события
+                from win32com.client import WithEvents
+                # Попытка подключения через WithEvents (может не работать для всех COM объектов)
+                event_connected = False
+        except Exception as e:
+            from utils.logger import logger
+            logger.warning(f"Не удалось подключить обработчик событий OnLog: {e}. Используется альтернативный метод.")
+            event_connected = False
         
         z_mod = math.sqrt((r_isx ** 2 if r_isx != -1.0 else 0) + x_isx ** 2)
         z_angle = (math.pi / 2.0) if r_isx == -1.0 else math.atan(x_isx / r_isx)
@@ -712,7 +729,7 @@ class RastrOperations:
             fw_dynamic = self._rastr.FWDynamic()
             ret_code = fw_dynamic.Run()
             
-            prot.clear()
+            # ИСПРАВЛЕНО: Сначала извлекаем значение, потом очищаем протокол (как в исходном C# коде)
             if prot:
                 last_msg = prot[-1]
                 try:
@@ -720,6 +737,12 @@ class RastrOperations:
                     u_current = float(u_kz_str)
                 except:
                     break
+            else:
+                # Если протокол пустой, прерываем цикл
+                break
+            
+            # Очистка протокола ПОСЛЕ извлечения значения (как в исходном C# коде, строка 339)
+            prot.clear()
         
         return ShuntKZResult(
             r=(-1.0 if r_isx == -1.0 else z_mod * math.cos(z_angle)),

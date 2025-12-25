@@ -363,14 +363,15 @@ class MdpStabilityCalc:
                             no_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] МДП найден после итераций: {no_pa_mdp:.2f}")
                         elif dyn_result.is_success and dyn_result.is_stable:
-                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Результат сразу устойчив, МДП = значение сечения ПОСЛЕ загрузки сценария")
-                            # Используем значение ПОСЛЕ загрузки сценария (ДО run_dynamic)
-                            # Это значение отражает состояние после применения конкретного сценария
-                            # и должно быть разным для разных сценариев
-                            no_pa_mdp = p_after_scn
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Результат сразу устойчив, МДП = значение сечения ПОСЛЕ run_dynamic (как в исходном коде)")
+                            # Используем значение ПОСЛЕ run_dynamic (как в исходном C# коде, строка 176)
+                            # Если результат устойчив, это означает, что текущая перегрузка меньше МДП
+                            # В этом случае МДП = текущее значение сечения после расчета динамики
+                            no_pa_mdp = p_after_dyn
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] МДП (устойчив): {no_pa_mdp:.2f}")
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Сценарий: {Path(scn.name).stem}")
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Значения: p_start={mdp_shem.p_start:.2f}, p_before_scn={p_before_scn:.2f}, p_after_scn={p_after_scn:.2f}, p_before_dyn={p_before_dyn:.2f}, p_after_dyn={p_after_dyn:.2f}")
+                            logger.warning(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] ВНИМАНИЕ: Если МДП одинаковые для разных сценариев, это может означать, что сценарии не изменяют перетоки в сечениях. Проверьте логику расчета МДП.")
                         else:
                             logger.warning(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Расчет динамики не успешен, МДП = -1")
                             no_pa_mdp = -1.0
@@ -514,12 +515,14 @@ class MdpStabilityCalc:
                             with_pa_mdp = rastr.get_val("sechen", "psech", self._selected_sch)
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] МДП найден после итераций: {with_pa_mdp:.2f}")
                         elif dyn_result.is_success and dyn_result.is_stable:
-                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Результат сразу устойчив, МДП = значение сечения ПОСЛЕ загрузки сценария/ПА")
-                            # Используем значение ПОСЛЕ загрузки сценария/ПА (ДО run_dynamic)
-                            # Это значение отражает состояние после применения конкретного сценария и ПА
-                            with_pa_mdp = p_after_scn_pa
+                            logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Результат сразу устойчив, МДП = значение сечения ПОСЛЕ run_dynamic (как в исходном коде)")
+                            # Используем значение ПОСЛЕ run_dynamic (как в исходном C# коде, строка 258)
+                            # Если результат устойчив, это означает, что текущая перегрузка меньше МДП
+                            # В этом случае МДП = текущее значение сечения после расчета динамики
+                            with_pa_mdp = p_after_dyn_pa
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] МДП (устойчив): {with_pa_mdp:.2f}")
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Значения: p_start={mdp_shem.p_start:.2f}, p_before_scn_pa={p_before_scn_pa:.2f}, p_after_scn_pa={p_after_scn_pa:.2f}, p_after_dyn_pa={p_after_dyn_pa:.2f}")
+                            logger.warning(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] ВНИМАНИЕ: Если МДП одинаковые для разных сценариев, это может означать, что сценарии не изменяют перетоки в сечениях. Проверьте логику расчета МДП.")
                         else:
                             logger.warning(f"[СЦЕНАРИЙ {scn_idx + 1}, С ПА] Расчет динамики не успешен, МДП = -1")
                             with_pa_mdp = -1.0

@@ -106,7 +106,17 @@ class UostStabilityCalc:
                             rastr.set_val("DFWAutoActionScn", "State", action_id, 1)
                         
                         if obj_class == "node":
-                            node_kz = int(rastr.get_val("DFWAutoActionScn", "ObjectKey", action_id))
+                            try:
+                                obj_key = rastr.get_val("DFWAutoActionScn", "ObjectKey", action_id)
+                                # Преобразуем в int, если это строка
+                                if isinstance(obj_key, str):
+                                    node_kz = int(obj_key.strip())
+                                else:
+                                    node_kz = int(obj_key)
+                            except (ValueError, TypeError) as e:
+                                from utils.logger import logger
+                                logger.error(f"Ошибка при получении node_kz из ObjectKey: {e}, значение: {rastr.get_val('DFWAutoActionScn', 'ObjectKey', action_id)}")
+                                continue
                             time_start = rastr.get_val("DFWAutoActionScn", "TimeStart", action_id)
                             
                             # Создание нового узла для расчета
@@ -126,9 +136,14 @@ class UostStabilityCalc:
                     # Парсинг ключа линии
                     line_parts = line_key.split(",")
                     if len(line_parts) >= 3:
-                        ip = int(line_parts[0])
-                        iq = int(line_parts[1])
-                        np = int(line_parts[2])
+                        try:
+                            ip = int(line_parts[0].strip())
+                            iq = int(line_parts[1].strip())
+                            np = int(line_parts[2].strip())
+                        except (ValueError, TypeError) as e:
+                            from utils.logger import logger
+                            logger.error(f"Ошибка при парсинге ключа линии '{line_key}': {e}")
+                            continue
                     else:
                         continue
                     
@@ -162,7 +177,10 @@ class UostStabilityCalc:
                     z_mod = math.sqrt((r_shunt ** 2 if r_shunt != -1.0 else 0) + x_shunt ** 2)
                     
                     # Определение начальной позиции КЗ
-                    l_start = (0.1 if ip == node_kz else 99.9)
+                    # ИСПРАВЛЕНО: Убеждаемся, что оба значения - числа перед сравнением
+                    ip_int = int(ip) if not isinstance(ip, int) else ip
+                    node_kz_int = int(node_kz) if not isinstance(node_kz, int) else node_kz
+                    l_start = (0.1 if ip_int == node_kz_int else 99.9)
                     l_end = 100.0 - l_start
                     
                     # Первый расчет
@@ -200,7 +218,10 @@ class UostStabilityCalc:
                           dyn_result2.is_success and not dyn_result2.is_stable):
                         # Оба неустойчивы - увеличиваем шунт
                         distance = -1.0
-                        rastr.set_line_for_uost_calc(branch1_id, branch2_id, r_line, x_line, (99.9 if ip == node_kz else 0.1))
+                        # ИСПРАВЛЕНО: Убеждаемся, что оба значения - числа перед сравнением
+                        ip_int = int(ip) if not isinstance(ip, int) else ip
+                        node_kz_int = int(node_kz) if not isinstance(node_kz, int) else node_kz
+                        rastr.set_line_for_uost_calc(branch1_id, branch2_id, r_line, x_line, (99.9 if ip_int == node_kz_int else 0.1))
                         
                         z_mod_new = (z_mod * 2.0) if z_mod > 0.1 else 1.0
                         z_mod_old = z_mod
