@@ -279,6 +279,7 @@ class UostStabilityCalc:
                     elif (dyn_result1.is_success and not dyn_result1.is_stable and 
                           dyn_result2.is_success and not dyn_result2.is_stable):
                         # Оба неустойчивы - увеличиваем шунт
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Оба расчета неустойчивы, начинаем увеличение шунта")
                         distance = -1.0
                         # ИСПРАВЛЕНО: Убеждаемся, что оба значения - числа перед сравнением
                         ip_int = int(ip) if not isinstance(ip, int) else ip
@@ -288,6 +289,8 @@ class UostStabilityCalc:
                         z_mod_new = (z_mod * 2.0) if z_mod > 0.1 else 1.0
                         z_mod_old = z_mod
                         
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Начальные значения: z_mod={z_mod:.4f}, z_mod_new={z_mod_new:.4f}, z_mod_old={z_mod_old:.4f}")
+                        
                         if r_shunt == -1.0:
                             rastr.change_rx_for_uost_calc(x_id, z_mod_new * math.sin(z_angle))
                         else:
@@ -295,10 +298,15 @@ class UostStabilityCalc:
                                                           r_id, z_mod_new * math.cos(z_angle))
                         
                         dyn_result4 = rastr.run_dynamic(ems=True)
+                        logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Первый расчет с увеличенным шунтом: успех={dyn_result4.is_success}, устойчивость={dyn_result4.is_stable}")
                         
-                        while dyn_result4.is_success and not dyn_result4.is_stable:
+                        iteration1 = 0
+                        max_iterations1 = 50  # Максимум итераций для первого цикла
+                        while dyn_result4.is_success and not dyn_result4.is_stable and iteration1 < max_iterations1:
                             z_mod_old = z_mod_new
                             z_mod_new += (z_mod if z_mod > 0.1 else 1.0)
+                            
+                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Итерация {iteration1 + 1}: z_mod_old={z_mod_old:.4f}, z_mod_new={z_mod_new:.4f}")
                             
                             if r_shunt == -1.0:
                                 rastr.change_rx_for_uost_calc(x_id, z_mod_new * math.sin(z_angle))
@@ -307,24 +315,49 @@ class UostStabilityCalc:
                                                               r_id, z_mod_new * math.cos(z_angle))
                             
                             dyn_result4 = rastr.run_dynamic(ems=True)
+                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Итерация {iteration1 + 1}: результат: успех={dyn_result4.is_success}, устойчивость={dyn_result4.is_stable}")
+                            iteration1 += 1
                         
-                        # Уточнение границы
-                        while dyn_result4.is_success and (not dyn_result4.is_stable or (1.0 - z_mod_old / z_mod_new) > 0.025):
-                            z_step = (z_mod_old - z_mod_new) * 0.5 if dyn_result4.is_stable else (z_mod_new - z_mod_old) * 0.5
-                            z_current = z_mod_new + z_step
+                        if iteration1 >= max_iterations1:
+                            logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Достигнуто максимальное количество итераций ({max_iterations1}) для увеличения шунта")
+                        
+                        if not dyn_result4.is_success:
+                            logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Расчет динамики не успешен после увеличения шунта, пропуск уточнения")
+                        else:
+                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Начало уточнения границы устойчивости: z_mod_old={z_mod_old:.4f}, z_mod_new={z_mod_new:.4f}")
                             
-                            if r_shunt == -1.0:
-                                rastr.change_rx_for_uost_calc(x_id, z_current * math.sin(z_angle))
-                            else:
-                                rastr.change_rx_for_uost_calc(x_id, z_current * math.sin(z_angle),
-                                                              r_id, z_current * math.cos(z_angle))
+                            # Уточнение границы
+                            iteration2 = 0
+                            max_iterations2 = 100  # Максимум итераций для второго цикла
+                            while dyn_result4.is_success and (not dyn_result4.is_stable or (1.0 - z_mod_old / z_mod_new) > 0.025) and iteration2 < max_iterations2:
+                                z_step = (z_mod_old - z_mod_new) * 0.5 if dyn_result4.is_stable else (z_mod_new - z_mod_old) * 0.5
+                                z_current = z_mod_new + z_step
+                                
+                                logger.debug(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Уточнение, итерация {iteration2 + 1}: z_step={z_step:.4f}, z_current={z_current:.4f}")
+                                
+                                if r_shunt == -1.0:
+                                    rastr.change_rx_for_uost_calc(x_id, z_current * math.sin(z_angle))
+                                else:
+                                    rastr.change_rx_for_uost_calc(x_id, z_current * math.sin(z_angle),
+                                                                  r_id, z_current * math.cos(z_angle))
+                                
+                                dyn_result4 = rastr.run_dynamic(ems=True)
+                                
+                                if dyn_result4.is_stable:
+                                    z_mod_new = z_current
+                                else:
+                                    z_mod_old = z_current
+                                
+                                iteration2 += 1
+                                
+                                # Логирование каждые 10 итераций
+                                if iteration2 % 10 == 0:
+                                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Уточнение, итерация {iteration2}: z_mod_old={z_mod_old:.4f}, z_mod_new={z_mod_new:.4f}, устойчивость={dyn_result4.is_stable}")
                             
-                            dyn_result4 = rastr.run_dynamic(ems=True)
+                            if iteration2 >= max_iterations2:
+                                logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Достигнуто максимальное количество итераций ({max_iterations2}) для уточнения границы")
                             
-                            if dyn_result4.is_stable:
-                                z_mod_new = z_current
-                            else:
-                                z_mod_old = z_current
+                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Уточнение завершено: z_mod_old={z_mod_old:.4f}, z_mod_new={z_mod_new:.4f}, устойчивость={dyn_result4.is_stable}")
                     
                     # Получение остаточных напряжений
                     begin_uost = -1.0
