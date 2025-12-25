@@ -193,6 +193,8 @@ class ModernMainWindow:
                      command=self._add_files, width=150).pack(side="left", padx=5)
         ctk.CTkButton(buttons_frame, text="➖ Удалить", 
                      command=self._delete_files, width=150).pack(side="left", padx=5)
+        ctk.CTkButton(buttons_frame, text="📂 Как в предыдущем расчете", 
+                     command=self._load_last_files, width=200).pack(side="left", padx=5)
         ctk.CTkButton(buttons_frame, text="⚙️ Настройки", 
                      command=self._open_settings, width=150).pack(side="left", padx=5)
         ctk.CTkButton(buttons_frame, text="🌓 Тема", 
@@ -538,6 +540,49 @@ class ModernMainWindow:
             if not recovered:
                 messagebox.showerror("Ошибка", user_message)
             logger.audit("FILE_ADD_ERROR", f"Ошибка при добавлении файлов: {str(e)}")
+    
+    def _load_last_files(self):
+        """Загрузка файлов из предыдущего расчета"""
+        try:
+            logger.audit("FILE_LOAD_LAST_START", "Начало загрузки последних файлов")
+            if self.data_info.load_last_files():
+                self._update_ui()
+                self._validate_all()  # Валидация после загрузки
+                self.status_bar.configure(
+                    text="Файлы из предыдущего расчета загружены успешно"
+                )
+                messagebox.showinfo(
+                    "Успешно",
+                    "Файлы из предыдущего расчета загружены успешно"
+                )
+                logger.audit(
+                    "FILE_LOAD_LAST_SUCCESS",
+                    "Последние файлы загружены успешно"
+                )
+            else:
+                self.status_bar.configure(
+                    text="Нет сохраненных файлов из предыдущего расчета"
+                )
+                messagebox.showinfo(
+                    "Информация",
+                    "Нет сохраненных файлов из предыдущего расчета"
+                )
+                logger.audit("FILE_LOAD_LAST_EMPTY", "Нет сохраненных файлов")
+        except Exception as e:
+            user_message, recovered = error_handler.handle_error(
+                e,
+                context="Загрузка последних файлов",
+                show_to_user=True
+            )
+            if not recovered:
+                messagebox.showerror("Ошибка", user_message)
+            self.status_bar.configure(
+                f"Ошибка при загрузке последних файлов: {str(e)}"
+            )
+            logger.audit(
+                "FILE_LOAD_LAST_ERROR",
+                f"Ошибка при загрузке последних файлов: {str(e)}"
+            )
     
     def _delete_files(self):
         """Удаление выбранных файлов"""

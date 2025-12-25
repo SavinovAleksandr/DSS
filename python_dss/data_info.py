@@ -117,6 +117,89 @@ class DataInfo:
             except Exception as e:
                 print(f"Ошибка при обработке файла {file_path}: {e}")
                 raise
+        
+        # Сохраняем последние загруженные файлы
+        self._save_last_files()
+    
+    def _save_last_files(self):
+        """Сохранение последних загруженных файлов в конфигурацию"""
+        try:
+            last_files = {
+                "rems": self.rems.name if self.rems.name else None,
+                "lapnu": self.lapnu.name if self.lapnu.name else None,
+                "vir": self.vir.name if self.vir.name else None,
+                "sechen": self.sechen.name if self.sechen.name else None,
+                "grf": self.grf.name if self.grf.name else None,
+                "rgms": [rgm.name for rgm in self.rgms_info if rgm.name],
+                "scns": [scn.name for scn in self.scns_info if scn.name],
+            }
+            # Удаляем None значения
+            last_files = {k: v for k, v in last_files.items() if v}
+            config.set("last_files", last_files, save=True)
+            logger.debug(f"Сохранены последние файлы: {list(last_files.keys())}")
+        except Exception as e:
+            logger.warning(f"Не удалось сохранить последние файлы: {e}")
+    
+    def load_last_files(self) -> bool:
+        """Загрузка последних загруженных файлов из конфигурации"""
+        try:
+            last_files = config.get("last_files", {})
+            if not last_files:
+                return False
+            
+            file_paths = []
+            
+            # Добавляем файлы режимов
+            if "rgms" in last_files and last_files["rgms"]:
+                file_paths.extend([f for f in last_files["rgms"] if Path(f).exists()])
+            
+            # Добавляем файлы сценариев
+            if "scns" in last_files and last_files["scns"]:
+                file_paths.extend([f for f in last_files["scns"] if Path(f).exists()])
+            
+            # Добавляем остальные файлы
+            for key in ["rems", "lapnu", "vir", "sechen", "grf"]:
+                if key in last_files and last_files[key] and Path(last_files[key]).exists():
+                    file_paths.append(last_files[key])
+            
+            if file_paths:
+                logger.info(f"Загрузка последних файлов: {len(file_paths)} файлов")
+                # Загружаем файлы без сохранения (чтобы избежать циклического вызова)
+                for file_path in file_paths:
+                    try:
+                        file_type = FileTypeDetector.detect(file_path)
+                        
+                        if file_type == 'rems':
+                            self._handle_rems_file(file_path)
+                        elif file_type == 'scenario':
+                            self._handle_scenario_file(file_path)
+                        elif file_type == 'vir':
+                            self._handle_vir_file(file_path)
+                        elif file_type == 'sechen':
+                            self._handle_sechen_file(file_path)
+                        elif file_type == 'rems_vrn':
+                            self._handle_rems_vrn_file(file_path)
+                        elif file_type == 'grf':
+                            self._handle_grf_file(file_path)
+                        elif file_type == 'shunt_kz':
+                            self._handle_shunt_kz_file(file_path)
+                        elif file_type == 'lapnu':
+                            self._handle_lapnu_file(file_path)
+                        else:
+                            logger.warning(
+                                f"Неподдерживаемый тип файла: {Path(file_path).suffix}"
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            f"Ошибка при обработке файла {file_path}: {e}"
+                        )
+                return True
+            else:
+                logger.warning("Последние файлы не найдены или недоступны")
+                return False
+        except Exception as e:
+            logger.warning(f"Не удалось загрузить последние файлы: {e}")
+            return False
     
     def _handle_rems_file(self, file_path: str):
         """Обработка файла расчетного режима"""

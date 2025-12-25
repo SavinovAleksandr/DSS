@@ -166,7 +166,9 @@ class MainWindow:
         
         ttk.Button(buttons_frame, text="Добавить", command=self._add_files).grid(row=0, column=0, padx=5)
         ttk.Button(buttons_frame, text="Удалить", command=self._delete_files).grid(row=0, column=1, padx=5)
-        ttk.Button(buttons_frame, text="Настройки", command=self._open_settings).grid(row=0, column=2, padx=5)
+        ttk.Button(buttons_frame, text="Как в предыдущем расчете", 
+                   command=self._load_last_files).grid(row=0, column=2, padx=5)
+        ttk.Button(buttons_frame, text="Настройки", command=self._open_settings).grid(row=0, column=3, padx=5)
         
         # Кнопки расчетов
         calc_frame = ttk.LabelFrame(main_frame, text="Расчеты", padding="5")
@@ -413,6 +415,27 @@ class MainWindow:
                 show_to_user=True
             )
             messagebox.showerror("Ошибка", user_message)
+    
+    def _load_last_files(self):
+        """Загрузка файлов из предыдущего расчета"""
+        try:
+            logger.audit("FILE_LOAD_LAST_START", "Начало загрузки последних файлов")
+            if self.data_info.load_last_files():
+                self._update_ui()
+                messagebox.showinfo("Успешно", "Файлы из предыдущего расчета загружены успешно")
+                logger.audit("FILE_LOAD_LAST_SUCCESS", "Последние файлы загружены успешно")
+            else:
+                messagebox.showinfo("Информация", "Нет сохраненных файлов из предыдущего расчета")
+                logger.audit("FILE_LOAD_LAST_EMPTY", "Нет сохраненных файлов")
+        except Exception as e:
+            user_message, recovered = error_handler.handle_error(
+                e,
+                context="Загрузка последних файлов",
+                show_to_user=True
+            )
+            if not recovered:
+                messagebox.showerror("Ошибка", user_message)
+            logger.audit("FILE_LOAD_LAST_ERROR", f"Ошибка при загрузке последних файлов: {str(e)}")
     
     def _delete_files(self):
         """Удаление выбранных файлов"""
