@@ -35,16 +35,34 @@ class ModernMainWindow:
             
             # Установка иконки окна
             try:
-                icon_path = Path(__file__).parent.parent / "resources" / "StabLimit.png"
-                if icon_path.exists():
+                icon_path_png = Path(__file__).parent.parent / "resources" / "StabLimit.png"
+                icon_path_ico = Path(__file__).parent.parent / "resources" / "StabLimit.ico"
+                
+                # На Windows предпочтительнее использовать .ico файл
+                if icon_path_ico.exists():
+                    try:
+                        self.root.iconbitmap(str(icon_path_ico))
+                        logger.info(f"Иконка окна установлена (ICO): {icon_path_ico}")
+                    except Exception as e:
+                        logger.warning(f"Не удалось установить ICO иконку: {e}, пробуем PNG")
+                        if icon_path_png.exists():
+                            from PIL import ImageTk
+                            img = Image.open(icon_path_png)
+                            photo = ImageTk.PhotoImage(img)
+                            self.root.iconphoto(False, photo)
+                            self.root._icon_photo = photo
+                            logger.info(f"Иконка окна установлена (PNG): {icon_path_png}")
+                elif icon_path_png.exists():
                     # CustomTkinter использует стандартный tkinter для иконки
                     from PIL import ImageTk
-                    img = Image.open(icon_path)
+                    img = Image.open(icon_path_png)
                     photo = ImageTk.PhotoImage(img)
                     self.root.iconphoto(False, photo)
                     # Сохраняем ссылку, чтобы изображение не удалилось
                     self.root._icon_photo = photo
-                    logger.info(f"Иконка окна установлена: {icon_path}")
+                    logger.info(f"Иконка окна установлена (PNG): {icon_path_png}")
+                else:
+                    logger.warning(f"Файл иконки не найден: {icon_path_png} или {icon_path_ico}")
             except Exception as e:
                 logger.warning(f"Не удалось установить иконку окна: {e}")
             

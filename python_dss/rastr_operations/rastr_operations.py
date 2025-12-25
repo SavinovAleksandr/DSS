@@ -412,7 +412,13 @@ class RastrOperations:
             )
             raise
 
-    def set_val(self, table_name: str, col_name: str, index_or_selection: Union[int, str], value: Any) -> bool:
+    def set_val(
+        self,
+        table_name: str,
+        col_name: str,
+        index_or_selection: Union[int, str],
+        value: Any,
+    ) -> bool:
         """Установка значения в таблицу (поддерживает индекс или строку выборки, как в C#)"""
         try:
             from utils.logger import logger
@@ -431,7 +437,7 @@ class RastrOperations:
                         idx = int(idx)
                     except (ValueError, TypeError):
                         idx = -1
-                
+
                 if idx != -1:
                     try:
                         col.SetZ(idx, value)
@@ -441,7 +447,9 @@ class RastrOperations:
                             col.set_Z(idx, value)
                             return True
                         except AttributeError as e:
-                            logger.error(f"Не удалось установить значение для {table_name}.{col_name} (выборка: {index_or_selection}): {e}")
+                            logger.error(
+                                f"Не удалось установить значение для {table_name}.{col_name} (выборка: {index_or_selection}): {e}"
+                            )
                             return False
                 return False
             else:
