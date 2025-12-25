@@ -87,6 +87,10 @@ class RastrOperations:
         from utils.config import config
         from utils.logger import logger
 
+        # ИСПРАВЛЕНО: Проверка на None или пустую строку
+        if not file:
+            raise ValueError(f"Путь к файлу не может быть None или пустой строкой")
+        
         file_path = Path(file)
         extension = file_path.suffix
 
@@ -313,6 +317,12 @@ class RastrOperations:
 
     def apply_variant(self, num: int, file: str) -> bool:
         """Применение варианта из файла"""
+        # ИСПРАВЛЕНО: Проверка на None или пустую строку перед загрузкой
+        if not file:
+            from utils.logger import logger
+            logger.error(f"Путь к файлу ремонтных схем не может быть None или пустой строкой для варианта {num}")
+            raise ValueError(f"Путь к файлу ремонтных схем не может быть None или пустой строкой")
+        
         self.load(file)
         self._rastr.ApplyVariant(num)
         return self.rgm()
