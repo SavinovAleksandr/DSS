@@ -319,19 +319,28 @@ class MdpStabilityCalc:
                             logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Начало итерационного поиска МДП: p_current={p_current:.2f}, p_stable={p_stable:.2f}, precision={precision:.2f}, step_min={step_min:.2f}, step_max={step_max:.2f}")
                             
                             # ИСПРАВЛЕНО: В C# сценарий загружается ДО цикла (строка 140), в цикле НЕ перезагружается (строки 152-155)
-                            # Сценарий уже загружен выше (строка 281), поэтому в цикле загружаем только базовый файл и VIR
+                            # В C# в цикле загружаются только базовый файл (text) и VIR, затем Step, затем RunDynamic БЕЗ загрузки сценария
+                            # Это означает, что сценарий должен сохраняться в памяти RASTR даже после Load(tmp_file_base)
+                            # Но в Python load() вызывает NewFile(), который сбрасывает все состояние
+                            # Поэтому нужно использовать add() для VIR или загружать сценарий в цикле
+                            # Проверяем: в C# Load() вызывает NewFile(), значит состояние сбрасывается
+                            # Но тогда как сценарий сохраняется? Возможно, сценарий загружается через Add()?
+                            # Или может быть, в C# используется другой механизм?
+                            # Пока используем загрузку сценария в цикле, так как load() сбрасывает состояние
                             while dyn_result.is_success and (abs(p_current - p_stable) > precision or not dyn_result.is_stable) and iteration < max_mdp_iterations:
                                 logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка базового файла: {tmp_file_base}")
                                 rastr.load(str(tmp_file_base))
-                                rastr.load(self._vir_path)
+                                rastr.add(self._vir_path)  # Используем add() вместо load() для сохранения состояния
                                 logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: вызов step({step_current:.2f})")
                                 step_actual = rastr.step(step_current)
                                 logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: step_actual={step_actual:.2f}")
                                 
-                                # ИСПРАВЛЕНО: В C# сценарий НЕ загружается в цикле (строка 155 - только RunDynamic)
-                                # Но нужно загрузить сценарий, так как load(tmp_file_base) сбрасывает состояние
+                                # В C# сценарий НЕ загружается в цикле (строка 155 - только RunDynamic)
+                                # Но load(tmp_file_base) сбрасывает состояние, поэтому нужно загрузить сценарий
+                                # Возможно, в C# используется другой механизм сохранения сценария
+                                # Пока загружаем сценарий в цикле
                                 logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: загрузка сценария: {scn.name}")
-                                rastr.load(scn.name)
+                                rastr.add(scn.name)  # Используем add() для сохранения состояния
                                 rastr.load_template(".dfw")
                                 
                                 logger.info(f"[СЦЕНАРИЙ {scn_idx + 1}, БЕЗ ПА] Итерация {iteration + 1}: вызов run_dynamic(ems=True)")
