@@ -329,7 +329,29 @@ class UostStabilityCalc:
                             # Уточнение границы
                             iteration2 = 0
                             max_iterations2 = 100  # Максимум итераций для второго цикла
+                            prev_z_mod_old = None
+                            prev_z_mod_new = None
+                            stagnation_count = 0
+                            
                             while dyn_result4.is_success and (not dyn_result4.is_stable or (1.0 - z_mod_old / z_mod_new) > 0.025) and iteration2 < max_iterations2:
+                                # ИСПРАВЛЕНО: Проверка на застой - если значения не меняются
+                                if prev_z_mod_old is not None and prev_z_mod_new is not None:
+                                    if abs(z_mod_old - prev_z_mod_old) < 0.0001 and abs(z_mod_new - prev_z_mod_new) < 0.0001:
+                                        stagnation_count += 1
+                                        if stagnation_count >= 5:
+                                            logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Обнаружен застой в уточнении границы (значения не меняются), прерываем цикл")
+                                            break
+                                    else:
+                                        stagnation_count = 0
+                                
+                                prev_z_mod_old = z_mod_old
+                                prev_z_mod_new = z_mod_new
+                                
+                                # ИСПРАВЛЕНО: Проверка на равенство значений (как в C# - если num21 == num20, то num22 = 0)
+                                if abs(z_mod_old - z_mod_new) < 0.0001:
+                                    logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] z_mod_old и z_mod_new стали одинаковыми ({z_mod_old:.4f}), прерываем цикл уточнения")
+                                    break
+                                
                                 z_step = (z_mod_old - z_mod_new) * 0.5 if dyn_result4.is_stable else (z_mod_new - z_mod_old) * 0.5
                                 z_current = z_mod_new + z_step
                                 
@@ -352,12 +374,18 @@ class UostStabilityCalc:
                                 
                                 # Логирование каждые 10 итераций
                                 if iteration2 % 10 == 0:
-                                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Уточнение, итерация {iteration2}: z_mod_old={z_mod_old:.4f}, z_mod_new={z_mod_new:.4f}, устойчивость={dyn_result4.is_stable}")
+                                    logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Уточнение, итерация {iteration2}: z_mod_old={z_mod_old:.4f}, z_mod_new={z_mod_new:.4f}, устойчивость={dyn_result4.is_stable}, разница={abs(z_mod_old - z_mod_new):.4f}")
                             
                             if iteration2 >= max_iterations2:
                                 logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Достигнуто максимальное количество итераций ({max_iterations2}) для уточнения границы")
                             
-                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Уточнение завершено: z_mod_old={z_mod_old:.4f}, z_mod_new={z_mod_new:.4f}, устойчивость={dyn_result4.is_stable}")
+                            logger.info(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Уточнение завершено: z_mod_old={z_mod_old:.4f}, z_mod_new={z_mod_new:.4f}, устойчивость={dyn_result4.is_stable}, итераций={iteration2}")
+                            
+                            # ИСПРАВЛЕНО: Если система все еще неустойчива после всех итераций, продолжаем расчет с текущими значениями
+                            if not dyn_result4.is_success:
+                                logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Расчет динамики не успешен после уточнения, продолжаем с distance=-1.0")
+                            elif not dyn_result4.is_stable:
+                                logger.warning(f"[РЕЖИМ {rgm_idx + 1}, ВАРИАНТ {vrn_idx + 1}, СЦЕНАРИЙ {scn_idx + 1}] Система все еще неустойчива после уточнения, продолжаем расчет")
                     
                     # Получение остаточных напряжений
                     begin_uost = -1.0
