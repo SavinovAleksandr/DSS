@@ -99,6 +99,15 @@ class UostStabilityCalc:
                     
                     actions = rastr.selection("DFWAutoActionScn")
                     for action_id in actions:
+                        # ИСПРАВЛЕНО: Убеждаемся, что action_id - это int
+                        if not isinstance(action_id, int):
+                            try:
+                                action_id = int(action_id)
+                            except (ValueError, TypeError) as e:
+                                from utils.logger import logger
+                                logger.error(f"Некорректный тип action_id: {action_id} (тип: {type(action_id)}), ошибка: {e}")
+                                continue
+                        
                         obj_class = rastr.get_val("DFWAutoActionScn", "ObjectClass", action_id)
                         
                         if obj_class == "vetv":
@@ -121,6 +130,9 @@ class UostStabilityCalc:
                             
                             # Создание нового узла для расчета
                             new_node_id = rastr.add_table_row("node")
+                            # ИСПРАВЛЕНО: Убеждаемся, что new_node_id - это int
+                            if not isinstance(new_node_id, int):
+                                new_node_id = int(new_node_id)
                             rastr.set_val("node", "ny", new_node_id, len(actions) + 1)
                             u_nom = rastr.get_val("node", "uhom", f"ny={node_kz}")
                             rastr.set_val("node", "uhom", new_node_id, u_nom)
@@ -164,6 +176,14 @@ class UostStabilityCalc:
                     # Добавление новых ветвей
                     branch1_id = rastr.add_table_row("vetv")
                     branch2_id = rastr.add_table_row("vetv")
+                    
+                    # ИСПРАВЛЕНО: Убеждаемся, что все ID - это int
+                    if not isinstance(branch1_id, int):
+                        branch1_id = int(branch1_id)
+                    if not isinstance(branch2_id, int):
+                        branch2_id = int(branch2_id)
+                    if not isinstance(new_node_id, int):
+                        new_node_id = int(new_node_id)
                     
                     rastr.set_val("vetv", "ip", branch1_id, ip)
                     rastr.set_val("vetv", "iq", branch1_id, new_node_id)

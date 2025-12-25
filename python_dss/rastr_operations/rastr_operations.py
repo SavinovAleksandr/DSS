@@ -179,10 +179,35 @@ class RastrOperations:
         """Добавление строки в таблицу"""
         table = self._rastr.Tables.Item(table_name)
         table.AddRow()
-        return table.Size - 1
+        table_size = table.Size
+        # ИСПРАВЛЕНО: Преобразуем table.Size в int, если это строка
+        if not isinstance(table_size, int):
+            try:
+                table_size = int(table_size)
+            except (ValueError, TypeError):
+                from utils.logger import logger
+                logger.error(f"Некорректный тип table.Size для {table_name}: {table_size} (тип: {type(table_size)})")
+                table_size = 0
+        return table_size - 1
     
     def set_line_for_uost_calc(self, id1: int, id2: int, r: float, x: float, l: float):
         """Установка параметров линии для расчета остаточного напряжения"""
+        # ИСПРАВЛЕНО: Преобразуем id1 и id2 в int, если это строки
+        if not isinstance(id1, int):
+            try:
+                id1 = int(id1)
+            except (ValueError, TypeError) as e:
+                from utils.logger import logger
+                logger.error(f"Некорректный тип id1: {id1} (тип: {type(id1)}), ошибка: {e}")
+                raise TypeError(f"id1 должен быть int, получен {type(id1).__name__}: {id1}")
+        if not isinstance(id2, int):
+            try:
+                id2 = int(id2)
+            except (ValueError, TypeError) as e:
+                from utils.logger import logger
+                logger.error(f"Некорректный тип id2: {id2} (тип: {type(id2)}), ошибка: {e}")
+                raise TypeError(f"id2 должен быть int, получен {type(id2).__name__}: {id2}")
+        
         table = self._rastr.Tables.Item("vetv")
         col_r = table.Cols.Item("r")
         col_x = table.Cols.Item("x")
@@ -199,6 +224,22 @@ class RastrOperations:
     
     def change_rx_for_uost_calc(self, x_id: int, x: float, r_id: int = 0, r: float = -1.0):
         """Изменение R/X для расчета остаточного напряжения"""
+        # ИСПРАВЛЕНО: Преобразуем x_id и r_id в int, если это строки
+        if not isinstance(x_id, int):
+            try:
+                x_id = int(x_id)
+            except (ValueError, TypeError) as e:
+                from utils.logger import logger
+                logger.error(f"Некорректный тип x_id: {x_id} (тип: {type(x_id)}), ошибка: {e}")
+                raise TypeError(f"x_id должен быть int, получен {type(x_id).__name__}: {x_id}")
+        if not isinstance(r_id, int):
+            try:
+                r_id = int(r_id)
+            except (ValueError, TypeError) as e:
+                from utils.logger import logger
+                logger.error(f"Некорректный тип r_id: {r_id} (тип: {type(r_id)}), ошибка: {e}")
+                raise TypeError(f"r_id должен быть int, получен {type(r_id).__name__}: {r_id}")
+        
         table = self._rastr.Tables.Item("DFWAutoActionScn")
         col_formula = table.Cols.Item("Formula")
         
@@ -288,8 +329,23 @@ class RastrOperations:
             
             table = self._rastr.Tables.Item(table_name)
             
+            # ИСПРАВЛЕНО: Преобразуем index в int, если это строка
+            if not isinstance(index, int):
+                try:
+                    index = int(index)
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Некорректный тип индекса для {table_name}.{col_name}: {index} (тип: {type(index)}), ошибка: {e}")
+                    raise TypeError(f"Индекс должен быть int, получен {type(index).__name__}: {index}")
+            
             # Проверяем, что индекс валиден
-            if index < 0 or index >= table.Size:
+            table_size = table.Size
+            if not isinstance(table_size, int):
+                try:
+                    table_size = int(table_size)
+                except (ValueError, TypeError):
+                    table_size = 0
+            
+            if index < 0 or index >= table_size:
                 raise IndexError(f"Индекс {index} вне диапазона таблицы {table_name} (размер: {table.Size})")
             
             col = table.Cols.Item(col_name)
