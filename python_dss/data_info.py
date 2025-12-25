@@ -339,11 +339,16 @@ class DataInfo:
         try:
             self._clear_all_results()
             
+            # ИСПРАВЛЕНО: Проверка наличия файлов перед передачей (как в C# конструкторе)
+            rems_name = self.rems.name if self.rems.name else None
+            sechen_name = self.sechen.name if self.sechen.name else None
+            lapnu_name = self.lapnu.name if self.lapnu.name else None
+            
             calc = DynStabilityCalc(
                 progress_callback,
                 self.rgms_info, self.scns_info, self.vrn_inf,
-                self.rems.name, self.kpr_inf, self.sechen.name,
-                self.lapnu.name, self.save_grf, self.lpns,
+                rems_name, self.kpr_inf, sechen_name,
+                lapnu_name, self.save_grf, self.lpns,
                 self.dyn_no_pa, self.dyn_with_pa, self.use_lpn
             )
             

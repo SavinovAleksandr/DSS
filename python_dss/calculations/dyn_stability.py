@@ -112,7 +112,13 @@ class DynStabilityCalc:
                     if vrn.id == -1:
                         is_stable = rastr.rgm()
                     else:
-                        is_stable = rastr.apply_variant(vrn.num, self._rems_path)
+                        # ИСПРАВЛЕНО: Проверка наличия пути к файлу ремонтных схем (как в C#)
+                        if not self._rems_path:
+                            from utils.logger import logger
+                            logger.error(f"Файл ремонтных схем не загружен, но требуется для варианта {vrn.name}")
+                            is_stable = False
+                        else:
+                            is_stable = rastr.apply_variant(vrn.num, self._rems_path)
                     
                     dyn_shem.is_stable = is_stable
                     
@@ -145,10 +151,23 @@ class DynStabilityCalc:
                     
                     # Расчет с ПА
                     if self._dyn_with_pa:
+                        # ИСПРАВЛЕНО: Проверка наличия путей (как в C# строка 159-165)
                         if self._use_lpn:
+                            if not self._sechen_path:
+                                from utils.logger import logger
+                                logger.error("Файл сечений не загружен, но требуется для расчета с ПА в формате LPN")
+                                continue
+                            if not self._lapnu_path:
+                                from utils.logger import logger
+                                logger.error("Файл ПА не загружен, но требуется для расчета с ПА")
+                                continue
                             rastr.load(self._sechen_path)
                             rastr.create_scn_from_lpn(self._lapnu_path, self._lpns, scn.name)
                         else:
+                            if not self._lapnu_path:
+                                from utils.logger import logger
+                                logger.error("Файл ПА не загружен, но требуется для расчета с ПА")
+                                continue
                             rastr.load(scn.name)
                             rastr.load(self._lapnu_path)
                         
