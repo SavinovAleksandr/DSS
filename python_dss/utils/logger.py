@@ -35,8 +35,35 @@ class Logger:
             return
         
         # Создание директории для логов (из конфигурации)
-        self.log_dir = config.get_path("paths.logs_dir")
-        self.log_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.log_dir = config.get_path("paths.logs_dir")
+            # Логируем путь ДО создания (используем print, так как logger еще не инициализирован)
+            print(f"[DEBUG] Попытка создать директорию для логов: {self.log_dir.absolute()}")
+            
+            # Создаем директорию с обработкой ошибок
+            try:
+                self.log_dir.mkdir(parents=True, exist_ok=True)
+                print(f"[DEBUG] Директория для логов создана/существует: {self.log_dir.absolute()}")
+            except PermissionError as e:
+                # Если нет прав, пробуем альтернативный путь
+                print(f"[WARNING] Нет прав на создание директории {self.log_dir.absolute()}: {e}")
+                fallback_dir = Path.home() / '.stablimit' / 'logs'
+                print(f"[WARNING] Используем альтернативный путь: {fallback_dir.absolute()}")
+                fallback_dir.mkdir(parents=True, exist_ok=True)
+                self.log_dir = fallback_dir
+            except Exception as e:
+                # Другая ошибка - используем альтернативный путь
+                print(f"[ERROR] Ошибка при создании директории {self.log_dir.absolute()}: {e}")
+                fallback_dir = Path.home() / '.stablimit' / 'logs'
+                print(f"[ERROR] Используем альтернативный путь: {fallback_dir.absolute()}")
+                fallback_dir.mkdir(parents=True, exist_ok=True)
+                self.log_dir = fallback_dir
+        except Exception as e:
+            # Если вообще не удалось получить путь из конфигурации
+            print(f"[ERROR] Не удалось получить путь к логам из конфигурации: {e}")
+            self.log_dir = Path.home() / '.stablimit' / 'logs'
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+            print(f"[ERROR] Используем путь по умолчанию: {self.log_dir.absolute()}")
         
         # Формат логов
         log_format = logging.Formatter(
@@ -54,29 +81,55 @@ class Logger:
         log_file = self.log_dir / 'stablimit.log'
         max_bytes = config.get("logging.max_bytes", 10 * 1024 * 1024)
         backup_count = config.get("logging.backup_count", 5)
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_file,
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding='utf-8'
-        )
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(log_format)
-        self.logger.addHandler(file_handler)
+        
+        try:
+            file_handler = logging.handlers.RotatingFileHandler(
+                str(log_file),  # Явно преобразуем в строку для Windows
+                maxBytes=max_bytes,
+                backupCount=backup_count,
+                encoding='utf-8'
+            )
+            file_handler.setLevel(logging.DEBUG)
+            file_handler.setFormatter(log_format)
+            self.logger.addHandler(file_handler)
+            print(f"[DEBUG] Файловый обработчик создан: {log_file.absolute()}")
+        except Exception as e:
+            print(f"[ERROR] Не удалось создать файловый обработчик для {log_file.absolute()}: {e}")
+            # Пробуем альтернативный путь
+            fallback_log_file = Path.home() / '.stablimit' / 'logs' / 'stablimit.log'
+            try:
+                fallback_log_file.parent.mkdir(parents=True, exist_ok=True)
+                file_handler = logging.handlers.RotatingFileHandler(
+                    str(fallback_log_file),
+                    maxBytes=max_bytes,
+                    backupCount=backup_count,
+                    encoding='utf-8'
+                )
+                file_handler.setLevel(logging.DEBUG)
+                file_handler.setFormatter(log_format)
+                self.logger.addHandler(file_handler)
+                self.log_dir = fallback_log_file.parent
+                print(f"[WARNING] Используется альтернативный путь для логов: {fallback_log_file.absolute()}")
+            except Exception as e2:
+                print(f"[CRITICAL] Не удалось создать файловый обработчик даже в альтернативном пути: {e2}")
+                # Продолжаем без файлового обработчика - только консольный
         
         # Обработчик ошибок (ERROR и выше) в отдельный файл
         error_log_file = self.log_dir / 'errors.log'
         error_max_bytes = config.get("logging.error_log_max_bytes", 5 * 1024 * 1024)
         error_backup_count = config.get("logging.error_log_backup_count", 3)
-        error_handler = logging.handlers.RotatingFileHandler(
-            error_log_file,
-            maxBytes=error_max_bytes,
-            backupCount=error_backup_count,
-            encoding='utf-8'
-        )
-        error_handler.setLevel(logging.ERROR)
-        error_handler.setFormatter(log_format)
-        self.logger.addHandler(error_handler)
+        try:
+            error_handler = logging.handlers.RotatingFileHandler(
+                str(error_log_file),  # Явно преобразуем в строку для Windows
+                maxBytes=error_max_bytes,
+                backupCount=error_backup_count,
+                encoding='utf-8'
+            )
+            error_handler.setLevel(logging.ERROR)
+            error_handler.setFormatter(log_format)
+            self.logger.addHandler(error_handler)
+        except Exception as e:
+            print(f"[WARNING] Не удалось создать обработчик ошибок для {error_log_file.absolute()}: {e}")
         
         # Лог операций пользователя (отдельный файл)
         audit_log_file = self.log_dir / 'audit.log'
